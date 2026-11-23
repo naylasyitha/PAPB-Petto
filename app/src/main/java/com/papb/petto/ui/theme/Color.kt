@@ -2,10 +2,13 @@ package com.papb.petto.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val PettoPrimaryBrown = Color(0xFF9E4814)
+val PettoPrimaryContainer = Color(0xFFFBF1E9)
+val PettoOnPrimary = Color(0xFFFFFFFF)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val PettoCreamBackground = Color(0xFFFFF7F2)
+val PettoSurface = Color(0xFFFFF7F2)
+
+val PettoDarkBrownText = Color(0xFF38220F)
+val PettoSubtitleColor = Color(0xFF635248)
+val PettoInputBorderColor = Color(0xFF5E4E43)

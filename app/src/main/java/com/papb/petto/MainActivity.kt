@@ -4,14 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.papb.petto.ui.auth.LoginScreen
+import com.papb.petto.ui.auth.RegisterScreen
+import com.papb.petto.ui.home.HomeScreen
 import com.papb.petto.ui.theme.PettoTheme
+
+enum class AuthScreenState {
+    LOGIN,
+    REGISTER,
+    HOME
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,29 +26,31 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PettoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                PettoApp()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun PettoApp() {
+    var currentScreen by remember { mutableStateOf(AuthScreenState.HOME) }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PettoTheme {
-        Greeting("Android")
+    when (currentScreen) {
+        AuthScreenState.LOGIN -> {
+            LoginScreen(
+                onNavigateToRegister = { currentScreen = AuthScreenState.REGISTER },
+                onNavigateToHome = { currentScreen = AuthScreenState.HOME }
+            )
+        }
+        AuthScreenState.REGISTER -> {
+            RegisterScreen(
+                onNavigateToLogin = { currentScreen = AuthScreenState.LOGIN },
+                onNavigateToHome = { currentScreen = AuthScreenState.HOME }
+            )
+        }
+        AuthScreenState.HOME -> {
+            HomeScreen()
+        }
     }
 }

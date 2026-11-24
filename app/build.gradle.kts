@@ -30,6 +30,8 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("SUPABASE_URL") ?: ""}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""}\"")
+        buildConfigField("String", "MIDTRANS_SERVER_KEY", "\"${localProperties.getProperty("MIDTRANS_SERVER_KEY") ?: "SB-Mid-server-SAMPLE_KEY"}\"")
+        buildConfigField("String", "MIDTRANS_CLIENT_KEY", "\"${localProperties.getProperty("MIDTRANS_CLIENT_KEY") ?: "SB-Mid-client-SAMPLE_KEY"}\"")
     }
 
     buildFeatures{
@@ -73,6 +75,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

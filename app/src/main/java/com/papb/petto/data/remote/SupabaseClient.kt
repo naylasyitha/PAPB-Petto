@@ -10,9 +10,22 @@ object SupabaseClient {
     val isConfigured: Boolean
         get() = BuildConfig.SUPABASE_URL.isNotBlank() && BuildConfig.SUPABASE_ANON_KEY.isNotBlank()
 
+    private fun cleanSupabaseUrl(raw: String): String {
+        return raw.trim()
+            .trimEnd('/')
+            .removeSuffix("/rest/v1")
+            .trimEnd('/')
+    }
+
     val client by lazy {
+        val sanitizedUrl = if (BuildConfig.SUPABASE_URL.isNotBlank()) {
+            cleanSupabaseUrl(BuildConfig.SUPABASE_URL)
+        } else {
+            "https://placeholder.supabase.co"
+        }
+
         createSupabaseClient(
-            supabaseUrl = BuildConfig.SUPABASE_URL.ifBlank { "https://placeholder.supabase.co" },
+            supabaseUrl = sanitizedUrl,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY.ifBlank { "placeholder-anon-key" }
         ) {
             install(Auth)

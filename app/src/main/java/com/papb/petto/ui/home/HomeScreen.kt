@@ -54,13 +54,17 @@ fun HomeScreen(
     onNotificationClick: () -> Unit = {},
     onQuickAccessClick: (String) -> Unit = {},
     onNavigateToAllCampaigns: () -> Unit = {},
-    onDonateClick: () -> Unit = {}
+    onDonateClick: () -> Unit = {},
+    onTabSelected: (BottomTab) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     HomeContent(
         state = uiState,
-        onTabSelected = viewModel::onTabSelected,
+        onTabSelected = { tab ->
+            viewModel.onTabSelected(tab)
+            onTabSelected(tab)
+        },
         onNotificationClick = onNotificationClick,
         onQuickAccessClick = onQuickAccessClick,
         onNavigateToAllCampaigns = onNavigateToAllCampaigns,

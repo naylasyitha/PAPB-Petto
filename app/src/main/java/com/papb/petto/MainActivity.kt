@@ -11,13 +11,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
+import com.papb.petto.ui.components.BottomTab
+import com.papb.petto.ui.donation.DonationFlowScreen
 import com.papb.petto.ui.home.HomeScreen
 import com.papb.petto.ui.theme.PettoTheme
 
 enum class AuthScreenState {
     LOGIN,
     REGISTER,
-    HOME
+    HOME,
+    DONATION
 }
 
 class MainActivity : ComponentActivity() {
@@ -50,7 +53,26 @@ fun PettoApp() {
             )
         }
         AuthScreenState.HOME -> {
-            HomeScreen()
+            HomeScreen(
+                onNavigateToAllCampaigns = { currentScreen = AuthScreenState.DONATION },
+                onDonateClick = { currentScreen = AuthScreenState.DONATION },
+                onTabSelected = { tab ->
+                    if (tab == BottomTab.DONATION) {
+                        currentScreen = AuthScreenState.DONATION
+                    }
+                }
+            )
+        }
+        AuthScreenState.DONATION -> {
+            DonationFlowScreen(
+                onNavigateBackToHome = { currentScreen = AuthScreenState.HOME },
+                currentTab = BottomTab.DONATION,
+                onTabSelected = { tab ->
+                    if (tab == BottomTab.HOME) {
+                        currentScreen = AuthScreenState.HOME
+                    }
+                }
+            )
         }
     }
 }

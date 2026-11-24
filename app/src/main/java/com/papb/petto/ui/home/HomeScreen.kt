@@ -54,7 +54,8 @@ fun HomeScreen(
     onNotificationClick: () -> Unit = {},
     onQuickAccessClick: (String) -> Unit = {},
     onNavigateToAllCampaigns: () -> Unit = {},
-    onDonateClick: () -> Unit = {}
+    onDonateClick: () -> Unit = {},
+    onNavigateToServiceMap: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -64,7 +65,8 @@ fun HomeScreen(
         onNotificationClick = onNotificationClick,
         onQuickAccessClick = onQuickAccessClick,
         onNavigateToAllCampaigns = onNavigateToAllCampaigns,
-        onDonateClick = onDonateClick
+        onDonateClick = onDonateClick,
+        onNavigateToServiceMap = onNavigateToServiceMap
     )
 }
 
@@ -75,7 +77,8 @@ fun HomeContent(
     onNotificationClick: () -> Unit,
     onQuickAccessClick: (String) -> Unit,
     onNavigateToAllCampaigns: () -> Unit,
-    onDonateClick: () -> Unit
+    onDonateClick: () -> Unit,
+    onNavigateToServiceMap: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
@@ -216,7 +219,10 @@ fun HomeContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            NearbyServicesCard(summaryText = state.nearbySummaryText)
+            NearbyServicesCard(
+                summaryText = state.nearbySummaryText,
+                onMapClick = onNavigateToServiceMap
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -381,7 +387,10 @@ private fun PetScheduleCard(item: PetScheduleItem) {
 }
 
 @Composable
-private fun NearbyServicesCard(summaryText: String) {
+private fun NearbyServicesCard(
+    summaryText: String,
+    onMapClick: () -> Unit = {}
+) {
     val colors = MaterialTheme.colorScheme
 
     Card(
@@ -482,7 +491,7 @@ private fun NearbyServicesCard(summaryText: String) {
                 )
 
                 Button(
-                    onClick = { },
+                    onClick = onMapClick,
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                     modifier = Modifier.height(42.dp)

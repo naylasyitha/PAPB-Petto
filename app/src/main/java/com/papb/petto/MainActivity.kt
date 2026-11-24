@@ -13,11 +13,13 @@ import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
 import com.papb.petto.ui.home.HomeScreen
 import com.papb.petto.ui.theme.PettoTheme
+import com.papb.petto.ui.servicemap.ServiceMapRoute
 
 enum class AuthScreenState {
     LOGIN,
     REGISTER,
-    HOME
+    HOME,
+    SERVICE_MAP
 }
 
 class MainActivity : ComponentActivity() {
@@ -50,7 +52,14 @@ fun PettoApp() {
             )
         }
         AuthScreenState.HOME -> {
-            HomeScreen()
+            HomeScreen(
+                onNavigateToServiceMap = { currentScreen = AuthScreenState.SERVICE_MAP }
+            )
+        }
+        AuthScreenState.SERVICE_MAP -> {
+            ServiceMapRoute(
+                onBack = { currentScreen = AuthScreenState.HOME }
+            )
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -51,6 +52,7 @@ import com.papb.petto.ui.theme.PettoTheme
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
+    onTabSelected: (BottomTab) -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onQuickAccessClick: (String) -> Unit = {},
     onNavigateToAllCampaigns: () -> Unit = {},
@@ -60,7 +62,10 @@ fun HomeScreen(
 
     HomeContent(
         state = uiState,
-        onTabSelected = viewModel::onTabSelected,
+        onTabSelected = { tab ->
+            viewModel.onTabSelected(tab)
+            onTabSelected(tab)
+        },
         onNotificationClick = onNotificationClick,
         onQuickAccessClick = onQuickAccessClick,
         onNavigateToAllCampaigns = onNavigateToAllCampaigns,
@@ -254,6 +259,7 @@ fun HomeContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .navigationBarsPadding()
         ) {
             FloatingBottomNavigation(
                 currentTab = state.currentTab,

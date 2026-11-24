@@ -11,13 +11,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
+import com.papb.petto.ui.components.BottomTab
+import com.papb.petto.ui.editprofile.EditProfileScreen
 import com.papb.petto.ui.home.HomeScreen
+import com.papb.petto.ui.petdetail.PetDetailScreen
+import com.papb.petto.ui.petform.PetFormScreen
+import com.papb.petto.ui.profile.ProfileScreen
 import com.papb.petto.ui.theme.PettoTheme
 
-enum class AuthScreenState {
+enum class AppScreenState {
     LOGIN,
     REGISTER,
-    HOME
+    HOME,
+    PROFILE,
+    PET_DETAIL,
+    ADD_PET,
+    EDIT_PET,
+    EDIT_PROFILE
 }
 
 class MainActivity : ComponentActivity() {
@@ -34,23 +44,93 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PettoApp() {
-    var currentScreen by remember { mutableStateOf(AuthScreenState.HOME) }
+    var currentScreen by remember { mutableStateOf(AppScreenState.PROFILE) }
 
     when (currentScreen) {
-        AuthScreenState.LOGIN -> {
+        AppScreenState.LOGIN -> {
             LoginScreen(
-                onNavigateToRegister = { currentScreen = AuthScreenState.REGISTER },
-                onNavigateToHome = { currentScreen = AuthScreenState.HOME }
+                onNavigateToRegister = { currentScreen = AppScreenState.REGISTER },
+                onNavigateToHome = { currentScreen = AppScreenState.HOME }
             )
         }
-        AuthScreenState.REGISTER -> {
+        AppScreenState.REGISTER -> {
             RegisterScreen(
-                onNavigateToLogin = { currentScreen = AuthScreenState.LOGIN },
-                onNavigateToHome = { currentScreen = AuthScreenState.HOME }
+                onNavigateToLogin = { currentScreen = AppScreenState.LOGIN },
+                onNavigateToHome = { currentScreen = AppScreenState.HOME }
             )
         }
-        AuthScreenState.HOME -> {
-            HomeScreen()
+        AppScreenState.HOME -> {
+            HomeScreen(
+                onTabSelected = { tab ->
+                    if (tab == BottomTab.PROFILE) {
+                        currentScreen = AppScreenState.PROFILE
+                    }
+                }
+            )
+        }
+        AppScreenState.PROFILE -> {
+            ProfileScreen(
+                onTabSelected = { tab ->
+                    if (tab == BottomTab.HOME) {
+                        currentScreen = AppScreenState.HOME
+                    }
+                },
+                onEditProfileClick = {
+                    currentScreen = AppScreenState.EDIT_PROFILE
+                },
+                onAddPetClick = {
+                    currentScreen = AppScreenState.ADD_PET
+                },
+                onPetClick = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                },
+                onLogoutSuccess = {
+                    currentScreen = AppScreenState.LOGIN
+                }
+            )
+        }
+        AppScreenState.PET_DETAIL -> {
+            PetDetailScreen(
+                onBackClick = {
+                    currentScreen = AppScreenState.PROFILE
+                },
+                onEditPetClick = {
+                    currentScreen = AppScreenState.EDIT_PET
+                }
+            )
+        }
+        AppScreenState.ADD_PET -> {
+            PetFormScreen(
+                isEditMode = false,
+                onBackClick = {
+                    currentScreen = AppScreenState.PROFILE
+                },
+                onFormSuccess = {
+                    currentScreen = AppScreenState.PROFILE
+                }
+            )
+        }
+        AppScreenState.EDIT_PET -> {
+            PetFormScreen(
+                isEditMode = true,
+                petId = "1",
+                onBackClick = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                },
+                onFormSuccess = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                }
+            )
+        }
+        AppScreenState.EDIT_PROFILE -> {
+            EditProfileScreen(
+                onBackClick = {
+                    currentScreen = AppScreenState.PROFILE
+                },
+                onSaveSuccess = {
+                    currentScreen = AppScreenState.PROFILE
+                }
+            )
         }
     }
 }

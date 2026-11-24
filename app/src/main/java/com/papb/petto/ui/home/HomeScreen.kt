@@ -55,13 +55,20 @@ fun HomeScreen(
     onQuickAccessClick: (String) -> Unit = {},
     onNavigateToAllCampaigns: () -> Unit = {},
     onDonateClick: () -> Unit = {},
-    onNavigateToServiceMap: () -> Unit = {}
+    onNavigateToServiceMap: () -> Unit = {},
+    onNavigateToCommunity: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     HomeContent(
         state = uiState,
-        onTabSelected = viewModel::onTabSelected,
+        onTabSelected = { tab ->
+            when (tab) {
+                BottomTab.LOCATION -> onNavigateToServiceMap()
+                BottomTab.COMMUNITY -> onNavigateToCommunity()
+                else -> viewModel.onTabSelected(tab)
+            }
+        },
         onNotificationClick = onNotificationClick,
         onQuickAccessClick = onQuickAccessClick,
         onNavigateToAllCampaigns = onNavigateToAllCampaigns,

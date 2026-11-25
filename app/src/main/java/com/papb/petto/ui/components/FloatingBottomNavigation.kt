@@ -57,71 +57,76 @@ fun FloatingBottomNavigation(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // --- 1. HOME TAB ---
             if (currentTab == BottomTab.HOME) {
                 ActiveTabItem(
-                    iconRes = R.drawable.home_home,
+                    iconRes = R.drawable.navbar_home_white,
                     label = "Home",
                     onClick = { onTabSelected(BottomTab.HOME) }
                 )
             } else {
                 InactiveTabIcon(
-                    iconRes = R.drawable.home_home,
+                    iconRes = R.drawable.navbar_home,
                     contentDescription = "Home",
                     onClick = { onTabSelected(BottomTab.HOME) }
                 )
             }
 
+            // --- 2. LOCATION TAB ---
             if (currentTab == BottomTab.LOCATION) {
                 ActiveTabItem(
-                    iconRes = R.drawable.location,
+                    iconRes = R.drawable.navbar_location,
                     label = "Location",
                     onClick = { onTabSelected(BottomTab.LOCATION) }
                 )
             } else {
                 InactiveTabIcon(
-                    iconRes = R.drawable.location,
+                    iconRes = R.drawable.navbar_location,
                     contentDescription = "Location",
                     onClick = { onTabSelected(BottomTab.LOCATION) }
                 )
             }
 
+            // --- 3. COMMUNITY TAB ---
             if (currentTab == BottomTab.COMMUNITY) {
                 ActiveTabItem(
-                    iconRes = R.drawable.community,
+                    iconRes = R.drawable.navbar_community,
                     label = "Community",
                     onClick = { onTabSelected(BottomTab.COMMUNITY) }
                 )
             } else {
                 InactiveTabIcon(
-                    iconRes = R.drawable.community,
+                    iconRes = R.drawable.navbar_community,
                     contentDescription = "Community",
                     onClick = { onTabSelected(BottomTab.COMMUNITY) }
                 )
             }
 
+            // --- 4. DONATION TAB ---
             if (currentTab == BottomTab.DONATION) {
                 ActiveTabItem(
-                    iconRes = R.drawable.donation,
+                    iconRes = R.drawable.navbar_donation,
                     label = "Donation",
                     onClick = { onTabSelected(BottomTab.DONATION) }
                 )
             } else {
                 InactiveTabIcon(
-                    iconRes = R.drawable.donation,
+                    iconRes = R.drawable.navbar_donation,
                     contentDescription = "Donation",
                     onClick = { onTabSelected(BottomTab.DONATION) }
                 )
             }
 
+            // --- 5. PROFILE TAB ---
             if (currentTab == BottomTab.PROFILE) {
                 ActiveTabItem(
-                    iconRes = R.drawable.profile,
+                    iconRes = R.drawable.navbar_profile_white,
                     label = "Profile",
                     onClick = { onTabSelected(BottomTab.PROFILE) }
                 )
             } else {
                 InactiveTabIcon(
-                    iconRes = R.drawable.profile,
+                    iconRes = R.drawable.navbar_profile,
                     contentDescription = "Profile",
                     onClick = { onTabSelected(BottomTab.PROFILE) }
                 )

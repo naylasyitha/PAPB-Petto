@@ -2,18 +2,26 @@ package com.papb.petto
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
+import com.papb.petto.ui.community.CommunityScreen
 import com.papb.petto.ui.components.BottomTab
 import com.papb.petto.ui.editprofile.EditProfileScreen
 import com.papb.petto.ui.home.HomeScreen
+import com.papb.petto.ui.missing.report.ReportMissingScreen
+import com.papb.petto.ui.notifications.NotificationsScreen
+import com.papb.petto.ui.notifications.NotificationsViewModel
 import com.papb.petto.ui.petdetail.PetDetailScreen
 import com.papb.petto.ui.petform.PetFormScreen
 import com.papb.petto.ui.profile.ProfileScreen
@@ -24,6 +32,9 @@ enum class AppScreenState {
     LOGIN,
     REGISTER,
     HOME,
+    COMMUNITY,
+    REPORT_MISSING,
+    NOTIFICATIONS,
     PROFILE,
     PET_DETAIL,
     ADD_PET,
@@ -47,7 +58,24 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PettoApp() {
-    var currentScreen by remember { mutableStateOf(AppScreenState.PROFILE) }
+    var currentScreen by remember { mutableStateOf(AppScreenState.HOME) }
+    val notificationsViewModel: NotificationsViewModel = viewModel()
+    val notificationsState by notificationsViewModel.uiState.collectAsState()
+
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == AppScreenState.HOME || currentScreen == AppScreenState.COMMUNITY) {
+            notificationsViewModel.refresh()
+        }
+    }
+
+    fun navigateToTab(tab: BottomTab) {
+        currentScreen = when (tab) {
+            BottomTab.HOME -> AppScreenState.HOME
+            BottomTab.COMMUNITY -> AppScreenState.COMMUNITY
+            BottomTab.PROFILE -> AppScreenState.PROFILE
+            else -> currentScreen
+        }
+    }
 
     when (currentScreen) {
         AppScreenState.LOGIN -> {
@@ -64,20 +92,40 @@ fun PettoApp() {
         }
         AppScreenState.HOME -> {
             HomeScreen(
-                onTabSelected = { tab ->
-                    if (tab == BottomTab.PROFILE) {
-                        currentScreen = AppScreenState.PROFILE
-                    }
+                unreadNotificationCount = notificationsState.unreadCount,
+                onTabSelected = ::navigateToTab,
+                onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
+                onQuickAccessClick = { action ->
+                    if (action == "missing_pet") currentScreen = AppScreenState.REPORT_MISSING
                 }
+            )
+        }
+        AppScreenState.COMMUNITY -> {
+            CommunityScreen(
+                unreadNotificationCount = notificationsState.unreadCount,
+                onTabSelected = ::navigateToTab,
+                onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
+                onProfileClick = { currentScreen = AppScreenState.PROFILE },
+                onReportMissingClick = { currentScreen = AppScreenState.REPORT_MISSING }
+            )
+        }
+        AppScreenState.REPORT_MISSING -> {
+            BackHandler { currentScreen = AppScreenState.COMMUNITY }
+            ReportMissingScreen(
+                onBackClick = { currentScreen = AppScreenState.COMMUNITY },
+                onSuccessFinished = { currentScreen = AppScreenState.COMMUNITY }
+            )
+        }
+        AppScreenState.NOTIFICATIONS -> {
+            BackHandler { currentScreen = AppScreenState.HOME }
+            NotificationsScreen(
+                viewModel = notificationsViewModel,
+                onBackClick = { currentScreen = AppScreenState.HOME }
             )
         }
         AppScreenState.PROFILE -> {
             ProfileScreen(
-                onTabSelected = { tab ->
-                    if (tab == BottomTab.HOME) {
-                        currentScreen = AppScreenState.HOME
-                    }
-                },
+                onTabSelected = ::navigateToTab,
                 onEditProfileClick = {
                     currentScreen = AppScreenState.EDIT_PROFILE
                 },

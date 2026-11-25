@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.papb.petto.R
+import com.papb.petto.ui.community.NotificationBell
 import com.papb.petto.ui.components.BottomTab
 import com.papb.petto.ui.components.FloatingBottomNavigation
 import com.papb.petto.ui.theme.PettoTheme
@@ -52,6 +53,7 @@ import com.papb.petto.ui.theme.PettoTheme
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
+    unreadNotificationCount: Int = 0,
     onTabSelected: (BottomTab) -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onQuickAccessClick: (String) -> Unit = {},
@@ -62,6 +64,7 @@ fun HomeScreen(
 
     HomeContent(
         state = uiState,
+        unreadNotificationCount = unreadNotificationCount,
         onTabSelected = { tab ->
             viewModel.onTabSelected(tab)
             onTabSelected(tab)
@@ -77,6 +80,7 @@ fun HomeScreen(
 fun HomeContent(
     state: HomeScreenState,
     onTabSelected: (BottomTab) -> Unit,
+    unreadNotificationCount: Int = 0,
     onNotificationClick: () -> Unit,
     onQuickAccessClick: (String) -> Unit,
     onNavigateToAllCampaigns: () -> Unit,
@@ -118,20 +122,11 @@ fun HomeContent(
                     )
                 }
 
-                Surface(
+                NotificationBell(
+                    count = unreadNotificationCount,
                     onClick = onNotificationClick,
-                    shape = CircleShape,
-                    color = colors.surfaceVariant,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = painterResource(id = R.drawable.notification),
-                            contentDescription = "Notification",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                    size = 48.dp
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))

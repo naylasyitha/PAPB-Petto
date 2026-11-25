@@ -17,6 +17,7 @@ import com.papb.petto.ui.home.HomeScreen
 import com.papb.petto.ui.petdetail.PetDetailScreen
 import com.papb.petto.ui.petform.PetFormScreen
 import com.papb.petto.ui.profile.ProfileScreen
+import com.papb.petto.ui.scheduleform.ScheduleFormScreen
 import com.papb.petto.ui.theme.PettoTheme
 
 enum class AppScreenState {
@@ -27,7 +28,9 @@ enum class AppScreenState {
     PET_DETAIL,
     ADD_PET,
     EDIT_PET,
-    EDIT_PROFILE
+    EDIT_PROFILE,
+    ADD_SCHEDULE,
+    EDIT_SCHEDULE
 }
 
 class MainActivity : ComponentActivity() {
@@ -96,6 +99,12 @@ fun PettoApp() {
                 },
                 onEditPetClick = {
                     currentScreen = AppScreenState.EDIT_PET
+                },
+                onAddScheduleClick = {
+                    currentScreen = AppScreenState.ADD_SCHEDULE
+                },
+                onEditScheduleClick = {
+                    currentScreen = AppScreenState.EDIT_SCHEDULE
                 }
             )
         }
@@ -129,6 +138,29 @@ fun PettoApp() {
                 },
                 onSaveSuccess = {
                     currentScreen = AppScreenState.PROFILE
+                }
+            )
+        }
+        AppScreenState.ADD_SCHEDULE -> {
+            ScheduleFormScreen(
+                isEditMode = false,
+                onBackClick = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                },
+                onFormSuccess = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                }
+            )
+        }
+        AppScreenState.EDIT_SCHEDULE -> {
+            ScheduleFormScreen(
+                isEditMode = true,
+                scheduleId = "1",
+                onBackClick = {
+                    currentScreen = AppScreenState.PET_DETAIL
+                },
+                onFormSuccess = {
+                    currentScreen = AppScreenState.PET_DETAIL
                 }
             )
         }

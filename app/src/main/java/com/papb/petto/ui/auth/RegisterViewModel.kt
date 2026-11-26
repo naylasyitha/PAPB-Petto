@@ -74,7 +74,7 @@ class RegisterViewModel(
             return
         }
         if (!GMAIL_REGEX.matches(state.email.trim())) {
-            _uiState.update { it.copy(errorMessage = "Please enter a valid email address (e.g. name@domain.com)") }
+            _uiState.update { it.copy(errorMessage = "Please enter a valid email address") }
             return
         }
         if (state.password.length < MIN_PASSWORD) {
@@ -96,7 +96,6 @@ class RegisterViewModel(
             )
 
             if (result.isSuccess) {
-                runCatching { authRepository.logout() }
                 _uiState.value = RegisterState()
                 _registerSuccess.trySend(Unit)
             } else {

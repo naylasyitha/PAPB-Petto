@@ -29,7 +29,7 @@ class LoginViewModel(
 
     fun onEmailChange(newEmail: String) {
         _uiState.update {
-            it.copy(email = newEmail, errorMessage = null, infoMessage = null, showResendConfirmation = false)
+            it.copy(email = newEmail, errorMessage = null)
         }
     }
 
@@ -63,38 +63,10 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = friendlyLoginError(exception),
-                        showResendConfirmation = isEmailNotConfirmed(exception)
+                        errorMessage = friendlyLoginError(exception)
                     )
                 }
             }
-        }
-    }
-
-    fun onResendConfirmationClicked() {
-        val email = _uiState.value.email.trim()
-        if (email.isEmpty() || _uiState.value.isLoading) return
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
-            authRepository.resendConfirmationEmail(email)
-                .onSuccess {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            infoMessage = "Confirmation email sent to $email. Check your inbox (and spam)."
-                        )
-                    }
-                }
-                .onFailure { e ->
-                    Log.e("LoginViewModel", "Kirim ulang email konfirmasi gagal", e)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = e.localizedMessage ?: "Failed to send confirmation email"
-                        )
-                    }
-                }
         }
     }
 
@@ -102,14 +74,9 @@ class LoginViewModel(
         // TODO: Integrasi Google Sign-In
     }
 
-    private fun isEmailNotConfirmed(e: Throwable): Boolean =
-        e.localizedMessage.orEmpty().contains("not confirmed", ignoreCase = true)
-
     private fun friendlyLoginError(e: Throwable): String {
         val msg = e.localizedMessage.orEmpty()
         return when {
-            msg.contains("not confirmed", ignoreCase = true) ->
-                "Your email isn't confirmed yet. Open the confirmation link we sent to your inbox (check spam too), then log in again."
             msg.contains("invalid login credentials", ignoreCase = true) ->
                 "Wrong email or password."
             msg.isBlank() -> "Login failed. Please check your credentials."

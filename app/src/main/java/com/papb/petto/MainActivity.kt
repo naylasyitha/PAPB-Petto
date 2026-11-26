@@ -124,8 +124,8 @@ fun PettoApp() {
             RegisterScreen(
                 onNavigateToLogin = { currentScreen = AppScreenState.LOGIN },
                 onRegisterSuccess = {
-                    loginNotice = "Account created! Check your email to confirm it, then log in."
-                    currentScreen = AppScreenState.LOGIN
+                    loginNotice = null
+                    currentScreen = AppScreenState.HOME
                 }
             )
         }

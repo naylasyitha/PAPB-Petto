@@ -6,7 +6,5 @@ data class LoginState(
     val isRememberMe: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isSuccess: Boolean = false,
-    val infoMessage: String? = null,
-    val showResendConfirmation: Boolean = false
+    val isSuccess: Boolean = false
 )

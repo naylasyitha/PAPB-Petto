@@ -33,7 +33,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -84,7 +83,6 @@ fun LoginScreen(
     LoginContent(
         state = uiState,
         infoMessage = infoMessage,
-        onResendConfirmationClick = viewModel::onResendConfirmationClicked,
         onEmailChange = viewModel::onEmailChange,
         onPasswordChange = viewModel::onPasswordChange,
         onRememberMeChange = viewModel::onRememberMeChange,
@@ -105,8 +103,7 @@ fun LoginContent(
     onGoogleLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    infoMessage: String? = null,
-    onResendConfirmationClick: () -> Unit = {}
+    infoMessage: String? = null
 ) {
     val colors = MaterialTheme.colorScheme
     val scrollState = rememberScrollState()
@@ -261,7 +258,7 @@ fun LoginContent(
                 AuthErrorMessage(message = errorMsg)
             }
 
-            (state.infoMessage ?: infoMessage)?.let { info ->
+            infoMessage?.let { info ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = info,
@@ -269,20 +266,6 @@ fun LoginContent(
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center
                 )
-            }
-
-            if (state.showResendConfirmation) {
-                TextButton(
-                    onClick = onResendConfirmationClick,
-                    enabled = !state.isLoading
-                ) {
-                    Text(
-                        text = "Resend confirmation email",
-                        color = colors.primary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(28.dp))

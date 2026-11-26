@@ -182,12 +182,12 @@ class PetFormViewModel(
         petId = id,
         petName = name,
         selectedSpecies = PetSpecies.fromDb(species.lowercase()).label,
-        breed = breed,
-        gender = if (gender.equals("male", ignoreCase = true)) GenderOption.MALE else GenderOption.FEMALE,
-        ageMonths = ageMonths,
-        weightKg = weightKg,
-        isSpayedNeutered = isSpayedNeutered,
-        notes = notes,
+        breed = safeBreed,
+        gender = if (safeGender.equals("male", ignoreCase = true)) GenderOption.MALE else GenderOption.FEMALE,
+        ageMonths = safeAgeMonths,
+        weightKg = safeWeightKg,
+        isSpayedNeutered = safeIsSpayedNeutered,
+        notes = safeNotes,
         imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default
     )
 }

@@ -1,5 +1,8 @@
 package com.papb.petto.ui.editprofile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,6 +96,9 @@ fun EditProfileContent(
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> }
 
     Box(
         modifier = Modifier
@@ -152,7 +158,7 @@ fun EditProfileContent(
                     )
 
                     Surface(
-                        onClick = { },
+                        onClick = { photoPickerLauncher.launch("image/*") },
                         shape = CircleShape,
                         color = colors.primary,
                         modifier = Modifier

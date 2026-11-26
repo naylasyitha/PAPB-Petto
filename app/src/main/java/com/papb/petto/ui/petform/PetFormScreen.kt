@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -113,6 +116,9 @@ fun PetFormContent(
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> }
 
     Box(
         modifier = Modifier
@@ -172,7 +178,7 @@ fun PetFormContent(
                     )
 
                     Surface(
-                        onClick = { },
+                        onClick = { photoPickerLauncher.launch("image/*") },
                         shape = CircleShape,
                         color = colors.primary,
                         modifier = Modifier

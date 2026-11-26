@@ -4,7 +4,9 @@ import com.papb.petto.BuildConfig
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.github.jan.supabase.storage.Storage
+import kotlinx.serialization.json.Json
 
 object SupabaseClient {
     val isConfigured: Boolean
@@ -29,6 +31,13 @@ object SupabaseClient {
             supabaseUrl = cleanUrl,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY.ifBlank { "placeholder-anon-key" }
         ) {
+            defaultSerializer = KotlinXSerializer(
+                Json {
+                    coerceInputValues = true
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                }
+            )
             install(Auth)
             install(Postgrest)
             install(Storage)

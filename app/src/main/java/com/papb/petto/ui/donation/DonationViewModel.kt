@@ -128,16 +128,17 @@ class DonationViewModel(
             _uiState.update { it.copy(checkoutState = CheckoutState.Loading) }
 
             val orderId = "PETTO-${System.currentTimeMillis()}-${(100..999).random()}"
-            val result = MidtransClient.requestSnapToken(
+            val result = MidtransClient.chargeDonation(
                 orderId = orderId,
                 amount = amount,
                 donorName = donorName.ifBlank { "Hamba Allah" },
+                paymentMethod = paymentMethod,
                 campaignId = campaign.id,
                 campaignTitle = campaign.title
             )
 
             result.fold(
-                onSuccess = { snapResponse ->
+                onSuccess = { paymentDetails ->
                     val pendingTransaction = DonationTransaction(
                         transactionId = orderId,
                         campaignId = campaign.id,
@@ -152,9 +153,10 @@ class DonationViewModel(
                     _uiState.update {
                         it.copy(
                             checkoutState = CheckoutState.Ready(
-                                snapToken = snapResponse.token,
-                                redirectUrl = snapResponse.redirectUrl,
-                                transaction = pendingTransaction
+                                snapToken = "",
+                                redirectUrl = paymentDetails.redirectUrl ?: paymentDetails.simulatorUrl ?: "",
+                                transaction = pendingTransaction,
+                                paymentDetails = paymentDetails
                             )
                         )
                     }
@@ -166,6 +168,11 @@ class DonationViewModel(
                 }
             )
         }
+    }
+
+    suspend fun verifyPaymentWithMidtrans(orderId: String): Boolean {
+        val status = MidtransClient.checkPaymentStatus(orderId)
+        return status.equals("settlement", ignoreCase = true) || status.equals("capture", ignoreCase = true)
     }
 
     fun onPaymentSuccess(transaction: DonationTransaction) {

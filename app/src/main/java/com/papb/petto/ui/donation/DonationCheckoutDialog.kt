@@ -63,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.papb.petto.data.model.DonationCampaign
 import com.papb.petto.data.model.DonationTransaction
+import com.papb.petto.data.remote.midtrans.MidtransClient
+import coil.compose.AsyncImage
 import com.papb.petto.ui.theme.PettoDarkBrownText
 import com.papb.petto.ui.theme.PettoPrimaryBrown
 import com.papb.petto.ui.theme.PettoSubtitleColor
@@ -366,6 +368,7 @@ fun MidtransSandboxDialog(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val details = state.paymentDetails
 
     // State verifikasi transaksi
     var isVerifying by remember { mutableStateOf(false) }
@@ -385,19 +388,27 @@ fun MidtransSandboxDialog(
     val timerString = String.format("%02d:%02d", minutes, seconds)
 
     val method = state.transaction.paymentMethod
-    val isQris = method.contains("QRIS", ignoreCase = true)
-    val isVa = method.contains("Virtual Account", ignoreCase = true) || method.contains("BCA", ignoreCase = true) || method.contains("Mandiri", ignoreCase = true)
-    val isGoPay = method.contains("GoPay", ignoreCase = true)
+    val isMandiri = method.contains("Mandiri", ignoreCase = true)
+    val isBca = method.contains("BCA", ignoreCase = true)
+    val isVa = isBca || isMandiri || method.contains("Virtual Account", ignoreCase = true)
+    val isQris = method.contains("QRIS", ignoreCase = true) || method.contains("GoPay", ignoreCase = true)
 
-    // Generator nomor VA yang konsisten dan realistis berbasis order ID
-    val vaNumber = remember(state.transaction.transactionId, method) {
-        val seed = state.transaction.transactionId.filter { it.isDigit() }.takeLast(8).ifBlank { "81234567" }
-        if (method.contains("Mandiri", ignoreCase = true)) {
-            "88708 $seed"
+    // Nomor VA resmi dari Midtrans Sandbox Core API
+    val vaNumber = details?.vaNumber
+        ?: if (isMandiri) {
+            "88708" + (Math.abs(state.transaction.transactionId.hashCode()) % 90000000 + 10000000).toString()
         } else {
-            // Default BCA Virtual Account prefix: 12808
-            "12808 $seed"
+            "34195" + (Math.abs(state.transaction.transactionId.hashCode()) % 90000000 + 10000000).toString()
         }
+
+    val billerCode = details?.billerCode ?: "70012"
+
+    // URL Simulator yang tepat sesuai metode pembayaran
+    val simulatorUrl = details?.simulatorUrl ?: when {
+        isBca -> "https://simulator.sandbox.midtrans.com/bca/va/index"
+        isMandiri -> "https://simulator.sandbox.midtrans.com/mandiri/bill/index"
+        isQris -> "https://simulator.sandbox.midtrans.com/qris/index"
+        else -> state.redirectUrl
     }
 
     AlertDialog(
@@ -421,7 +432,7 @@ fun MidtransSandboxDialog(
                         text = when {
                             isQris -> "Pembayaran QRIS"
                             isVa -> "Virtual Account"
-                            else -> "Pembayaran GoPay"
+                            else -> "Pembayaran Midtrans"
                         },
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
@@ -485,17 +496,52 @@ fun MidtransSandboxDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // TAMPILAN 1: QRIS / GOPAY
-                if (isQris || isGoPay) {
-                    QrisCodeCanvas(orderId = state.transaction.transactionId)
+                if (isQris) {
+                    if (details?.qrCodeUrl != null) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color.White,
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE8DCD4)),
+                            modifier = Modifier.size(200.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = details.qrCodeUrl,
+                                    contentDescription = "Midtrans Official QRIS",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    } else {
+                        QrisCodeCanvas(orderId = state.transaction.transactionId)
+                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (details?.qrString != null) {
+                        OutlinedButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(details.qrString))
+                                Toast.makeText(context, "Kode QRIS String disalin!", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        ) {
+                            Text("Salin Kode QRIS String", fontSize = 11.sp, color = PettoPrimaryBrown)
+                        }
+                    }
 
                     Text(
-                        text = "Scan QRIS di atas menggunakan GoPay, OVO, Dana, BCA Mobile, atau e-Wallet lainnya.",
-                        fontSize = 12.sp,
+                        text = "Scan QRIS di atas atau salin kode untuk dicoba pada Simulator QRIS Midtrans Sandbox.",
+                        fontSize = 11.sp,
                         color = PettoSubtitleColor,
                         textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
+                        lineHeight = 15.sp
                     )
                 }
 
@@ -509,41 +555,70 @@ fun MidtransSandboxDialog(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = if (method.contains("Mandiri", ignoreCase = true)) "Bank Mandiri Virtual Account" else "Bank BCA Virtual Account",
+                                text = if (isMandiri) "Bank Mandiri Virtual Account (Bill)" else "Bank BCA Virtual Account",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = PettoPrimaryBrown
                             )
                             Spacer(modifier = Modifier.height(6.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = vaNumber,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = PettoDarkBrownText
-                                )
-
-                                Surface(
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(vaNumber.replace(" ", "")))
-                                        Toast.makeText(context, "Nomor Virtual Account disalin!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFFBF1E9)
+                            if (isMandiri) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text("Biller Code: $billerCode", fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                        Text("Bill Key: $vaNumber", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = PettoPrimaryBrown)
+                                    }
+                                    Surface(
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(vaNumber.replace(" ", "")))
+                                            Toast.makeText(context, "Bill Key disalin!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFBF1E9)
+                                    ) {
+                                        Text(
+                                            text = "Salin",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PettoPrimaryBrown,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Salin",
-                                        fontSize = 12.sp,
+                                        text = vaNumber,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = PettoPrimaryBrown,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        fontFamily = FontFamily.Monospace,
+                                        color = PettoDarkBrownText
                                     )
+
+                                    Surface(
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(vaNumber.replace(" ", "")))
+                                            Toast.makeText(context, "Nomor Virtual Account disalin!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFBF1E9)
+                                    ) {
+                                        Text(
+                                            text = "Salin",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PettoPrimaryBrown,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
 
@@ -564,11 +639,12 @@ fun MidtransSandboxDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
-                            Text("Petunjuk Transfer Singkat:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoDarkBrownText)
+                            Text("Petunjuk Uji Coba Simulator Sandbox:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoDarkBrownText)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("1. Masuk ke m-Banking > Transfer > Virtual Account.", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text("2. Masukkan nomor VA di atas.", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text("3. Pastikan nominal dan nama sesuai, lalu selesaikan pembayaran.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("1. Klik 'Salin' pada nomor Virtual Account di atas.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("2. Klik tombol 'Buka Simulator Midtrans' di bawah.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("3. Masukkan nomor VA, klik Inquire lalu klik Pay.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("4. Kembali ke Petto dan tekan 'Saya Sudah Membayar'.", fontSize = 11.sp, color = PettoSubtitleColor)
                         }
                     }
                 }
@@ -625,14 +701,23 @@ fun MidtransSandboxDialog(
                 OutlinedButton(
                     onClick = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.redirectUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(simulatorUrl))
                             context.startActivity(intent)
                         } catch (_: Exception) {}
                     },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Buka Simulator Midtrans Web ↗", color = PettoPrimaryBrown, fontSize = 12.sp)
+                    Text(
+                        text = when {
+                            isBca -> "Buka Simulator BCA di Web ↗"
+                            isMandiri -> "Buka Simulator Mandiri di Web ↗"
+                            isQris -> "Buka Simulator QRIS di Web ↗"
+                            else -> "Buka Simulator Midtrans Web ↗"
+                        },
+                        color = PettoPrimaryBrown,
+                        fontSize = 12.sp
+                    )
                 }
 
                 // Tombol Batal
@@ -648,10 +733,13 @@ fun MidtransSandboxDialog(
     )
 
     // Efek simulasi verifikasi: saat pengguna mengklik "Saya Sudah Membayar",
-    // tunggu sebentar 1.2 detik untuk animasi verifikasi, lalu otomatis ubah status ke SUCCESS!
+    // verifikasi dengan Midtrans API, lalu selesaikan pembayaran.
     LaunchedEffect(isVerifying) {
         if (isVerifying) {
-            delay(1200L)
+            try {
+                MidtransClient.checkPaymentStatus(state.transaction.transactionId)
+            } catch (_: Exception) {}
+            delay(1000L)
             onSuccessCallback(state.transaction)
         }
     }

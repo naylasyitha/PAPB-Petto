@@ -2,14 +2,16 @@ package com.papb.petto.ui.donation
 
 import com.papb.petto.data.model.DonationCampaign
 import com.papb.petto.data.model.DonationTransaction
+import com.papb.petto.data.remote.midtrans.MidtransPaymentDetails
 
 sealed interface CheckoutState {
     data object Idle : CheckoutState
     data object Loading : CheckoutState
     data class Ready(
-        val snapToken: String,
-        val redirectUrl: String,
-        val transaction: DonationTransaction
+        val snapToken: String = "",
+        val redirectUrl: String = "",
+        val transaction: DonationTransaction,
+        val paymentDetails: MidtransPaymentDetails? = null
     ) : CheckoutState
     data class Success(val transaction: DonationTransaction) : CheckoutState
     data class Failed(val message: String) : CheckoutState

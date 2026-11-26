@@ -33,6 +33,7 @@ import com.papb.petto.ui.petdetail.PetDetailScreen
 import com.papb.petto.ui.petform.PetFormScreen
 import com.papb.petto.ui.profile.ProfileScreen
 import com.papb.petto.ui.scheduleform.ScheduleFormScreen
+import com.papb.petto.ui.servicemap.ServiceMapRoute
 import com.papb.petto.ui.theme.PettoTheme
 
 enum class AppScreenState {
@@ -41,6 +42,7 @@ enum class AppScreenState {
     HOME,
     DONATION,
     COMMUNITY,
+    SERVICE_MAP,
     REPORT_MISSING,
     NOTIFICATIONS,
     PROFILE,
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
 fun PettoApp() {
     var currentScreen by rememberSaveable { mutableStateOf(AppScreenState.HOME) }
     var selectedPetId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedScheduleId by rememberSaveable { mutableStateOf<String?>(null) }
     var loginNotice by rememberSaveable { mutableStateOf<String?>(null) }
     var sessionChecked by rememberSaveable { mutableStateOf(false) }
 
@@ -83,8 +86,9 @@ fun PettoApp() {
     fun navigateToTab(tab: BottomTab) {
         currentScreen = when (tab) {
             BottomTab.HOME -> AppScreenState.HOME
-            BottomTab.DONATION -> AppScreenState.DONATION
+            BottomTab.LOCATION -> AppScreenState.SERVICE_MAP
             BottomTab.COMMUNITY -> AppScreenState.COMMUNITY
+            BottomTab.DONATION -> AppScreenState.DONATION
             BottomTab.PROFILE -> AppScreenState.PROFILE
             else -> currentScreen
         }
@@ -127,8 +131,8 @@ fun PettoApp() {
             RegisterScreen(
                 onNavigateToLogin = { currentScreen = AppScreenState.LOGIN },
                 onRegisterSuccess = {
-                    loginNotice = null
-                    currentScreen = AppScreenState.HOME
+                    loginNotice = "Account created! Check your email to confirm it, then log in."
+                    currentScreen = AppScreenState.LOGIN
                 }
             )
         }
@@ -159,6 +163,12 @@ fun PettoApp() {
                 onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
                 onProfileClick = { currentScreen = AppScreenState.PROFILE },
                 onReportMissingClick = { currentScreen = AppScreenState.REPORT_MISSING }
+            )
+        }
+        AppScreenState.SERVICE_MAP -> {
+            BackHandler { currentScreen = AppScreenState.HOME }
+            ServiceMapRoute(
+                onBack = { currentScreen = AppScreenState.HOME }
             )
         }
         AppScreenState.REPORT_MISSING -> {
@@ -196,6 +206,7 @@ fun PettoApp() {
         AppScreenState.PET_DETAIL -> {
             BackHandler { currentScreen = AppScreenState.PROFILE }
             PetDetailScreen(
+                petId = selectedPetId,
                 onBackClick = {
                     currentScreen = AppScreenState.PROFILE
                 },
@@ -205,7 +216,8 @@ fun PettoApp() {
                 onAddScheduleClick = {
                     currentScreen = AppScreenState.ADD_SCHEDULE
                 },
-                onEditScheduleClick = {
+                onEditScheduleClick = { scheduleId ->
+                    selectedScheduleId = scheduleId
                     currentScreen = AppScreenState.EDIT_SCHEDULE
                 }
             )
@@ -250,6 +262,7 @@ fun PettoApp() {
             BackHandler { currentScreen = AppScreenState.PET_DETAIL }
             ScheduleFormScreen(
                 isEditMode = false,
+                petId = selectedPetId,
                 onBackClick = {
                     currentScreen = AppScreenState.PET_DETAIL
                 },
@@ -262,7 +275,8 @@ fun PettoApp() {
             BackHandler { currentScreen = AppScreenState.PET_DETAIL }
             ScheduleFormScreen(
                 isEditMode = true,
-                scheduleId = "1",
+                petId = selectedPetId,
+                scheduleId = selectedScheduleId,
                 onBackClick = {
                     currentScreen = AppScreenState.PET_DETAIL
                 },

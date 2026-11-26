@@ -48,6 +48,7 @@ import com.papb.petto.ui.theme.PettoTheme
 
 @Composable
 fun PetDetailScreen(
+    petId: String?,
     viewModel: PetDetailViewModel = viewModel(),
     onBackClick: () -> Unit = {},
     onEditPetClick: () -> Unit = {},
@@ -56,8 +57,8 @@ fun PetDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadPetDetails()
+    LaunchedEffect(petId) {
+        viewModel.loadPetDetails(petId)
     }
 
     PetDetailContent(
@@ -167,6 +168,16 @@ fun PetDetailContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            state.errorMessage?.let { msg ->
+                Text(
+                    text = msg,
+                    color = Color(0xFFD50000),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // --- PET MAIN HEADER CARD ---
             Card(
                 shape = RoundedCornerShape(18.dp),
@@ -195,7 +206,7 @@ fun PetDetailContent(
                         )
 
                         // Pencil Edit Button
-                        Surface(
+                        if (!state.isSamplePet) Surface(
                             onClick = onEditPetClick,
                             shape = CircleShape,
                             color = colors.primary,
@@ -227,7 +238,9 @@ fun PetDetailContent(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.female_color),
+                                    painter = painterResource(
+                                        id = if (state.isFemale) R.drawable.female_color else R.drawable.male_white
+                                    ),
                                     contentDescription = "Gender",
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -292,7 +305,7 @@ fun PetDetailContent(
                 )
 
                 // "+ Add Schedule" Button
-                Button(
+                if (!state.isSamplePet) Button(
                     onClick = onAddScheduleClick,
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
@@ -309,9 +322,19 @@ fun PetDetailContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            if (state.healthSchedules.isEmpty() && !state.isLoading) {
+                Text(
+                    text = "No schedule yet. Tap + Add Schedule to create one.",
+                    fontSize = 13.sp,
+                    color = colors.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             state.healthSchedules.forEach { schedule ->
                 ScheduleCardItem(
                     item = schedule,
+                    showActions = !state.isSamplePet,
                     onDeleteClick = { onDeleteScheduleClick(schedule) },
                     onEditClick = { onEditScheduleClick(schedule.id) },
                     onMarkAsDoneClick = { onMarkAsDoneClick(schedule.id) }
@@ -330,6 +353,15 @@ fun PetDetailContent(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            if (state.pastRecords.isEmpty() && !state.isLoading) {
+                Text(
+                    text = "No completed care yet.",
+                    fontSize = 13.sp,
+                    color = colors.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             state.pastRecords.forEach { record ->
                 PastRecordCardItem(record = record)
@@ -380,6 +412,7 @@ private fun PetStatCard(
 @Composable
 private fun ScheduleCardItem(
     item: HealthScheduleItem,
+    showActions: Boolean,
     onDeleteClick: () -> Unit,
     onEditClick: () -> Unit,
     onMarkAsDoneClick: () -> Unit
@@ -464,7 +497,7 @@ private fun ScheduleCardItem(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Action Buttons Row (Trash, Pencil, Mark as Done)
-            Row(
+            if (showActions) Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically

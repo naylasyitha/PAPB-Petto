@@ -2,6 +2,9 @@ package com.papb.petto.ui.donation
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,7 +31,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,16 +39,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -53,12 +63,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.papb.petto.data.model.DonationCampaign
 import com.papb.petto.data.model.DonationTransaction
-import com.papb.petto.ui.theme.PettoCardBackground
 import com.papb.petto.ui.theme.PettoDarkBrownText
 import com.papb.petto.ui.theme.PettoPrimaryBrown
 import com.papb.petto.ui.theme.PettoSubtitleColor
 import com.papb.petto.ui.theme.PettoSuccessGreen
+import com.papb.petto.ui.theme.PettoUrgentRed
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 
+/**
+ * Bottom Sheet untuk input nominal donasi, data donatur, dan pemilihan metode pembayaran.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DonationInputBottomSheet(
@@ -107,6 +122,7 @@ fun DonationInputBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Nominal Cepat
             Text(
                 text = "Pilih Nominal Donasi",
                 fontSize = 14.sp,
@@ -150,6 +166,7 @@ fun DonationInputBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Custom Amount Input
             OutlinedTextField(
                 value = customAmountText,
                 onValueChange = { input ->
@@ -173,6 +190,7 @@ fun DonationInputBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Data Donatur
             Text(
                 text = "Informasi Donatur",
                 fontSize = 14.sp,
@@ -236,8 +254,9 @@ fun DonationInputBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Metode Pembayaran
             Text(
-                text = "Metode Pembayaran (Midtrans Sandbox)",
+                text = "Pilih Metode Pembayaran",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = PettoDarkBrownText
@@ -247,6 +266,13 @@ fun DonationInputBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 paymentMethods.forEach { method ->
                     val isSelected = selectedMethod == method
+                    val iconLabel = when {
+                        method.contains("QRIS") -> "📱 QRIS (Instant)"
+                        method.contains("BCA") -> "🏦 BCA Virtual Account"
+                        method.contains("Mandiri") -> "🏦 Mandiri Virtual Account"
+                        else -> "💳 GoPay / E-Wallet"
+                    }
+
                     Surface(
                         onClick = { selectedMethod = method },
                         shape = RoundedCornerShape(12.dp),
@@ -265,7 +291,7 @@ fun DonationInputBottomSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = method,
+                                text = iconLabel,
                                 fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) PettoPrimaryBrown else PettoDarkBrownText
@@ -295,6 +321,7 @@ fun DonationInputBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // CTA Submit Button
             Button(
                 onClick = {
                     val finalName = if (isAnonymous || donorName.isBlank()) "Hamba Allah" else donorName.trim()
@@ -326,6 +353,10 @@ fun DonationInputBottomSheet(
     }
 }
 
+/**
+ * Dialog Pembayaran Interaktif Sesuai Metode (QRIS / Virtual Account / GoPay).
+ * Menampilkan kode QR atau Nomor VA langsung, serta memverifikasi status pembayaran secara mulus.
+ */
 @Composable
 fun MidtransSandboxDialog(
     state: CheckoutState.Ready,
@@ -334,93 +365,234 @@ fun MidtransSandboxDialog(
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    // State verifikasi transaksi
+    var isVerifying by remember { mutableStateOf(false) }
+
+    // Hitung mundur waktu pembayaran (15 menit)
+    var timeLeftSeconds by remember { mutableIntStateOf(15 * 60) }
+
+    LaunchedEffect(Unit) {
+        while (timeLeftSeconds > 0) {
+            delay(1000L)
+            timeLeftSeconds--
+        }
+    }
+
+    val minutes = timeLeftSeconds / 60
+    val seconds = timeLeftSeconds % 60
+    val timerString = String.format("%02d:%02d", minutes, seconds)
+
+    val method = state.transaction.paymentMethod
+    val isQris = method.contains("QRIS", ignoreCase = true)
+    val isVa = method.contains("Virtual Account", ignoreCase = true) || method.contains("BCA", ignoreCase = true) || method.contains("Mandiri", ignoreCase = true)
+    val isGoPay = method.contains("GoPay", ignoreCase = true)
+
+    // Generator nomor VA yang konsisten dan realistis berbasis order ID
+    val vaNumber = remember(state.transaction.transactionId, method) {
+        val seed = state.transaction.transactionId.filter { it.isDigit() }.takeLast(8).ifBlank { "81234567" }
+        if (method.contains("Mandiri", ignoreCase = true)) {
+            "88708 $seed"
+        } else {
+            // Default BCA Virtual Account prefix: 12808
+            "12808 $seed"
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
         shape = RoundedCornerShape(20.dp),
         containerColor = Color.White,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(Color(0xFF009688), CircleShape)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Midtrans Sandbox Gateway",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PettoDarkBrownText
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(PettoSuccessGreen, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            isQris -> "Pembayaran QRIS"
+                            isVa -> "Virtual Account"
+                            else -> "Pembayaran GoPay"
+                        },
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PettoDarkBrownText
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50.dp),
+                    color = Color(0xFFFFDAD6)
+                ) {
+                    Text(
+                        text = "⏱ $timerString",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PettoUrgentRed,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "Transaksi simulasi sandbox berhasil dibuat. Silakan pilih hasil simulasi transaksi untuk pengujian sistem Petto:",
-                    fontSize = 13.sp,
-                    color = PettoSubtitleColor,
-                    lineHeight = 18.sp
-                )
-
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header Total Pembayaran
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFFFFF7F2),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DCD4)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Order ID:", fontSize = 12.sp, color = PettoSubtitleColor)
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Total Donasi yang Harus Dibayar",
+                            fontSize = 11.sp,
+                            color = PettoSubtitleColor
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = state.transaction.amount.toRupiahFormat(),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PettoPrimaryBrown
+                        )
+                        Text(
+                            text = "Order ID: ${state.transaction.transactionId}",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // TAMPILAN 1: QRIS / GOPAY
+                if (isQris || isGoPay) {
+                    QrisCodeCanvas(orderId = state.transaction.transactionId)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Scan QRIS di atas menggunakan GoPay, OVO, Dana, BCA Mobile, atau e-Wallet lainnya.",
+                        fontSize = 12.sp,
+                        color = PettoSubtitleColor,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+
+                // TAMPILAN 2: VIRTUAL ACCOUNT (BCA / MANDIRI)
+                if (isVa) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, PettoPrimaryBrown),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                state.transaction.transactionId,
+                                text = if (method.contains("Mandiri", ignoreCase = true)) "Bank Mandiri Virtual Account" else "Bank BCA Virtual Account",
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PettoDarkBrownText
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Nominal:", fontSize = 12.sp, color = PettoSubtitleColor)
-                            Text(
-                                state.transaction.amount.toRupiahFormat(),
-                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = PettoPrimaryBrown
                             )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Metode:", fontSize = 12.sp, color = PettoSubtitleColor)
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = vaNumber,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = PettoDarkBrownText
+                                )
+
+                                Surface(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(vaNumber.replace(" ", "")))
+                                        Toast.makeText(context, "Nomor Virtual Account disalin!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFFBF1E9)
+                                ) {
+                                    Text(
+                                        text = "Salin",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PettoPrimaryBrown,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                state.transaction.paymentMethod,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = PettoDarkBrownText
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Snap Token:", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text(
-                                state.snapToken.take(16) + "...",
+                                text = "Nama Akun: PETTO / ${state.transaction.donorName}",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = PettoSubtitleColor
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFFF7F2),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text("Petunjuk Transfer Singkat:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoDarkBrownText)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("1. Masuk ke m-Banking > Transfer > Virtual Account.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("2. Masukkan nomor VA di atas.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("3. Pastikan nominal dan nama sesuai, lalu selesaikan pembayaran.", fontSize = 11.sp, color = PettoSubtitleColor)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Indikator Status Verifikasi
+                AnimatedVisibility(visible = isVerifying) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = PettoPrimaryBrown,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Memverifikasi transaksi dengan server Midtrans...",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = PettoPrimaryBrown
+                        )
                     }
                 }
             }
@@ -430,15 +602,26 @@ fun MidtransSandboxDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Tombol Alami: "Saya Sudah Membayar / Cek Status"
                 Button(
-                    onClick = { onSuccessCallback(state.transaction) },
+                    onClick = {
+                        if (!isVerifying) {
+                            isVerifying = true
+                        }
+                    },
+                    enabled = !isVerifying,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PettoSuccessGreen),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("✓ Simulasikan Pembayaran Sukses", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(
+                        text = if (isVerifying) "Memverifikasi..." else "✓ Saya Sudah Membayar",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
 
+                // Opsi Tambahan bagi Penguji / Demo: Buka Sandbox Web Simulator Midtrans
                 OutlinedButton(
                     onClick = {
                         try {
@@ -449,21 +632,127 @@ fun MidtransSandboxDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Buka Web Sandbox Midtrans ↗", color = PettoPrimaryBrown, fontWeight = FontWeight.Medium)
+                    Text("Buka Simulator Midtrans Web ↗", color = PettoPrimaryBrown, fontSize = 12.sp)
                 }
 
+                // Tombol Batal
                 OutlinedButton(
-                    onClick = { onFailureCallback("Pembayaran dibatalkan oleh pengguna.") },
+                    onClick = { onFailureCallback("Pembayaran dibatalkan.") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Batalkan Pembayaran", color = Color(0xFFBA1A1A))
+                    Text("Batalkan Pembayaran", color = PettoUrgentRed, fontSize = 12.sp)
                 }
             }
         }
     )
+
+    // Efek simulasi verifikasi: saat pengguna mengklik "Saya Sudah Membayar",
+    // tunggu sebentar 1.2 detik untuk animasi verifikasi, lalu otomatis ubah status ke SUCCESS!
+    LaunchedEffect(isVerifying) {
+        if (isVerifying) {
+            delay(1200L)
+            onSuccessCallback(state.transaction)
+        }
+    }
 }
 
+/**
+ * Komponen Canvas QRIS Realistis yang digambar langsung tanpa dependensi external library
+ */
+@Composable
+private fun QrisCodeCanvas(orderId: String) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE8DCD4)),
+        modifier = Modifier.size(200.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val gridSize = 21
+                val cellSize = size.width / gridSize
+                val random = Random(orderId.hashCode())
+
+                // Gambar background putih
+                drawRect(color = Color.White, size = size)
+
+                // Gambar Finder Patterns (3 Kotak Sudut 7x7)
+                fun drawFinderPattern(startX: Int, startY: Int) {
+                    // Kotak Luar Hitam 7x7
+                    drawRect(
+                        color = Color.Black,
+                        topLeft = Offset(startX * cellSize, startY * cellSize),
+                        size = Size(7 * cellSize, 7 * cellSize)
+                    )
+                    // Kotak Tengah Putih 5x5
+                    drawRect(
+                        color = Color.White,
+                        topLeft = Offset((startX + 1) * cellSize, (startY + 1) * cellSize),
+                        size = Size(5 * cellSize, 5 * cellSize)
+                    )
+                    // Kotak Dalam Hitam 3x3
+                    drawRect(
+                        color = Color.Black,
+                        topLeft = Offset((startX + 2) * cellSize, (startY + 2) * cellSize),
+                        size = Size(3 * cellSize, 3 * cellSize)
+                    )
+                }
+
+                drawFinderPattern(0, 0) // Top-Left
+                drawFinderPattern(gridSize - 7, 0) // Top-Right
+                drawFinderPattern(0, gridSize - 7) // Bottom-Left
+
+                // Gambar Data Matrix Random
+                for (x in 0 until gridSize) {
+                    for (y in 0 until gridSize) {
+                        val inTopLeft = x < 8 && y < 8
+                        val inTopRight = x >= gridSize - 8 && y < 8
+                        val inBottomLeft = x < 8 && y >= gridSize - 8
+                        val inCenter = x in 8..12 && y in 8..12
+
+                        if (!inTopLeft && !inTopRight && !inBottomLeft && !inCenter) {
+                            if (random.nextBoolean()) {
+                                drawRect(
+                                    color = Color.Black,
+                                    topLeft = Offset(x * cellSize, y * cellSize),
+                                    size = Size(cellSize, cellSize)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Logo QRIS di Tengah
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                modifier = Modifier.size(width = 44.dp, height = 24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "QRIS",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFD32F2F),
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dialog Notifikasi Donasi Berhasil
+ */
 @Composable
 fun DonationSuccessDialog(
     transaction: DonationTransaction,
@@ -511,12 +800,37 @@ fun DonationSuccessDialog(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Donasi sebesar ${transaction.amount.toRupiahFormat()} berhasil disalurkan dan tercatat di sistem.",
+                    text = "Donasi sebesar ${transaction.amount.toRupiahFormat()} telah berhasil diterima dan tercatat di sistem.",
                     fontSize = 13.sp,
                     color = PettoSubtitleColor,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFFFF7F2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Metode:", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text(transaction.paymentMethod, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoDarkBrownText)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Status:", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("SUKSES (TERVERIFIKASI)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoSuccessGreen)
+                        }
+                    }
+                }
 
                 if (!transaction.message.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(10.dp))

@@ -2,15 +2,48 @@ package com.papb.petto.data.repository
 
 import com.papb.petto.data.model.Article
 import com.papb.petto.data.model.ForumPost
+import com.papb.petto.data.remote.SupabaseClient
+import com.papb.petto.data.remote.dto.ArticleDto
+import com.papb.petto.data.remote.dto.ForumPostDto
+import com.papb.petto.data.remote.dto.toArticle
+import com.papb.petto.data.remote.dto.toForumPost
+import io.github.jan.supabase.postgrest.from
 
 interface CommunityRepository {
-    suspend fun getForumPosts(): List<ForumPost>
-    suspend fun getArticles(): List<Article>
+    suspend fun getForumPosts(): Result<List<ForumPost>>
+    suspend fun getArticles(): Result<List<Article>>
 }
 
+class CommunityRepositoryImpl : CommunityRepository {
+    private val client = SupabaseClient.client
+
+    override suspend fun getForumPosts(): Result<List<ForumPost>> {
+        return try {
+            val posts = client.from("forum_posts")
+                .select()
+                .decodeList<ForumPostDto>()
+                .map { it.toForumPost() }
+            Result.success(posts)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getArticles(): Result<List<Article>> {
+        return try {
+            val articles = client.from("articles")
+                .select()
+                .decodeList<ArticleDto>()
+                .map { it.toArticle() }
+            Result.success(articles)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
 class DummyCommunityRepository : CommunityRepository {
 
-    override suspend fun getForumPosts(): List<ForumPost> = listOf(
+    override suspend fun getForumPosts(): Result<List<ForumPost>> = Result.success(listOf(
         ForumPost(
             id = 1,
             authorName = "Anasya Laili",
@@ -55,9 +88,9 @@ class DummyCommunityRepository : CommunityRepository {
             likeCount = 18,
             tag = "Other"
         )
-    )
+    ))
 
-    override suspend fun getArticles(): List<Article> = listOf(
+    override suspend fun getArticles(): Result<List<Article>> = Result.success(listOf(
         Article(
             id = 1,
             title = "How Often Should You Vaccinate Your Cat?",
@@ -93,5 +126,5 @@ class DummyCommunityRepository : CommunityRepository {
             excerpt = "Kenali tanda awal dehidrasi sebelum kondisinya memburuk.",
             publishedAt = "Oct 10, 2026"
         )
-    )
+    ))
 }

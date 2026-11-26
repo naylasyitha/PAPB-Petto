@@ -1,13 +1,33 @@
 package com.papb.petto.data.repository
 
 import com.papb.petto.data.model.Service
+import com.papb.petto.data.remote.SupabaseClient
+import com.papb.petto.data.remote.dto.ServiceDto
+import com.papb.petto.data.remote.dto.toService
+import io.github.jan.supabase.postgrest.from
 
 interface ServiceRepository {
-    suspend fun getServices(): List<Service>
+    suspend fun getServices(): Result<List<Service>>
+}
+
+class ServiceRepositoryImpl : ServiceRepository {
+    private val client = SupabaseClient.client
+
+    override suspend fun getServices(): Result<List<Service>> {
+        return try {
+            val services = client.from("services")
+                .select()
+                .decodeList<ServiceDto>()
+                .map { it.toService() }
+            Result.success(services)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 class DummyServiceRepository : ServiceRepository {
-    override suspend fun getServices(): List<Service> = listOf(
+    override suspend fun getServices(): Result<List<Service>> = Result.success(listOf(
         Service(
             id = 1,
             name = "Satwa Sehat Vet Clinic",
@@ -64,5 +84,5 @@ class DummyServiceRepository : ServiceRepository {
             reviewCount = 340,
             tag = "Ambulance"
         )
-    )
+    ))
 }

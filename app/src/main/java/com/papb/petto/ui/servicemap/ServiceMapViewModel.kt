@@ -27,7 +27,7 @@ class ServiceMapViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                val services = serviceRepository.getServices()
+                val services = serviceRepository.getServices().getOrThrow()
                 val location = if (locationRepository.hasLocationPermission()) {
                     locationRepository.getCurrentLocation().getOrNull()
                 } else {

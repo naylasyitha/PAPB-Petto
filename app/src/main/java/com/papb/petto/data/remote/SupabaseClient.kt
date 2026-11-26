@@ -18,14 +18,15 @@ object SupabaseClient {
     }
 
     val client by lazy {
-        val sanitizedUrl = if (BuildConfig.SUPABASE_URL.isNotBlank()) {
-            cleanSupabaseUrl(BuildConfig.SUPABASE_URL)
+        val rawUrl = BuildConfig.SUPABASE_URL.trim()
+        val cleanUrl = if (rawUrl.isNotBlank()) {
+            cleanSupabaseUrl(rawUrl)
         } else {
             "https://placeholder.supabase.co"
         }
 
         createSupabaseClient(
-            supabaseUrl = sanitizedUrl,
+            supabaseUrl = cleanUrl,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY.ifBlank { "placeholder-anon-key" }
         ) {
             install(Auth)

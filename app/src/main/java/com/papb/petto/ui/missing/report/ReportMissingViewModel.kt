@@ -13,6 +13,7 @@ import com.papb.petto.data.repository.ProfileRepository
 import com.papb.petto.data.repository.ProfileRepositoryImpl
 import com.papb.petto.util.FormatUtils
 import com.papb.petto.util.ImageCompressor
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,14 +34,19 @@ class ReportMissingViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(ReportMissingState())
     val uiState: StateFlow<ReportMissingState> = _uiState.asStateFlow()
 
-    /** Titik awal peta saat memilih lokasi: alamat rumah di profile (jika ada), selain itu Jakarta. */
+    /** Titik awal peta saat memilih lokasi. */
     var fallbackLat: Double = DEFAULT_LAT
         private set
     var fallbackLng: Double = DEFAULT_LNG
         private set
 
-    init {
-        viewModelScope.launch {
+    private var profileJob: Job? = null
+    private var currentLocationJob: Job? = null
+    private var geocodeJob: Job? = null
+
+    fun onScreenOpened() {
+        profileJob?.cancel()
+        profileJob = viewModelScope.launch {
             profileRepository.getMyProfile().onSuccess { profile ->
                 profile?.let {
                     if (it.homeLat != null && it.homeLng != null) {
@@ -57,7 +63,16 @@ class ReportMissingViewModel @JvmOverloads constructor(
                 }
             }
         }
-        useCurrentLocation()
+        if (_uiState.value.pickedLat == null) useCurrentLocation()
+    }
+
+    fun reset() {
+        profileJob?.cancel()
+        currentLocationJob?.cancel()
+        geocodeJob?.cancel()
+        fallbackLat = DEFAULT_LAT
+        fallbackLng = DEFAULT_LNG
+        _uiState.value = ReportMissingState()
     }
 
     // Field handlers
@@ -95,7 +110,8 @@ class ReportMissingViewModel @JvmOverloads constructor(
     // Location
 
     fun useCurrentLocation() {
-        viewModelScope.launch {
+        currentLocationJob?.cancel()
+        currentLocationJob = viewModelScope.launch {
             val point = locationRepository.getCurrentLocation() ?: return@launch
             onLocationPicked(point.lat, point.lng)
         }
@@ -103,7 +119,8 @@ class ReportMissingViewModel @JvmOverloads constructor(
 
     fun onLocationPicked(lat: Double, lng: Double) {
         _uiState.update { it.copy(pickedLat = lat, pickedLng = lng, isLocating = true, errorMessage = null) }
-        viewModelScope.launch {
+        geocodeJob?.cancel()
+        geocodeJob = viewModelScope.launch {
             val place = locationRepository.reverseGeocode(lat, lng)
             _uiState.update {
                 it.copy(

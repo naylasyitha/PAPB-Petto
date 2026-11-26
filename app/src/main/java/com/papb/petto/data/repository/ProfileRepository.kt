@@ -2,6 +2,7 @@ package com.papb.petto.data.repository
 
 import com.papb.petto.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
@@ -76,11 +77,22 @@ class ProfileRepositoryImpl : ProfileRepository {
             put("home_lng", lng)
         }
 
-    override suspend fun updateMonitoredLocation(lat: Double, lng: Double): Result<Unit> =
-        updateMetadata {
-            put("monitored_lat", lat)
-            put("monitored_lng", lng)
+    /** Lokasi pantau disimpan di database, karena fungsi notifikasi di server membaca dari sana. */
+    override suspend fun updateMonitoredLocation(lat: Double, lng: Double): Result<Unit> {
+        return try {
+            client.auth.awaitInitialization()
+            client.postgrest.rpc(
+                "set_monitored_location",
+                buildJsonObject {
+                    put("p_lat", lat)
+                    put("p_lng", lng)
+                }
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
 
     /** Gabungkan metadata lama dengan nilai baru, lalu simpan ke akun. */
     private suspend fun updateMetadata(changes: JsonObjectBuilder.() -> Unit): Result<Unit> {

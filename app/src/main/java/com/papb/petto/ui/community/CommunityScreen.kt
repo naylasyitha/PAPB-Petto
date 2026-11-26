@@ -270,6 +270,7 @@ fun CommunityContent(
                 text = { Text("Report Missing", fontWeight = FontWeight.Bold) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
                     .padding(end = 20.dp, bottom = 96.dp)
             )
         }

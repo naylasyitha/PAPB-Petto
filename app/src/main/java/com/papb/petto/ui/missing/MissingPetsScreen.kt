@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -78,9 +81,13 @@ fun MissingPetsContent(
 
     LaunchedEffect(Unit) { onRefresh() }
 
+    val systemBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 180.dp),
+        contentPadding = PaddingValues(
+            start = 20.dp, end = 20.dp, top = 12.dp, bottom = 180.dp + systemBarBottom
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {

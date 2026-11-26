@@ -37,17 +37,12 @@ class ProfileViewModel(
         SettingMenuItem("About Petto", R.drawable.about_profile, "about")
     )
 
-    // Snowie & Hotdog (pet contoh) selalu tampil di paling atas
-    private fun samplePets() = SampleData.pets().map { it.toProfileItem() }
-
-    private val _uiState = MutableStateFlow(ProfileState(pets = samplePets(), settings = settings))
+    private val _uiState = MutableStateFlow(ProfileState(pets = emptyList(), settings = settings))
     val uiState: StateFlow<ProfileState> = _uiState.asStateFlow()
 
-    // Event sekali pakai: tidak menempel di state (ViewModel ini Activity-scoped).
     private val _logoutEvent = Channel<Unit>(Channel.BUFFERED)
     val logoutEvent = _logoutEvent.receiveAsFlow()
 
-    /** Nama (dari data register) dan email di header. Dipanggil setiap layar Profile tampil. */
     fun loadProfile() {
         viewModelScope.launch {
             val email = userRepository.currentUserEmail().orEmpty()
@@ -66,10 +61,7 @@ class ProfileViewModel(
         }
     }
 
-    /** Daftar pet: contoh + dari Supabase. Dipanggil setiap layar Profile tampil. */
     fun loadPets() {
-        // tampilkan pet contoh dulu (termasuk hasil edit terakhir), lalu gabung dengan data Supabase
-        _uiState.update { it.copy(pets = samplePets()) }
         viewModelScope.launch {
             petRepository.getPetsForCurrentUser()
                 .onSuccess { pets ->
@@ -91,13 +83,12 @@ class ProfileViewModel(
     }
 
     fun onLogoutClicked() {
-        if (_uiState.value.isLoggingOut) return // cegah klik berulang
+        if (_uiState.value.isLoggingOut) return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoggingOut = true) }
             authRepository.logout()
                 .onSuccess {
-                    // bersihkan data user lama supaya tidak terlihat oleh akun berikutnya
-                    _uiState.value = ProfileState(pets = samplePets(), settings = settings)
+                    _uiState.value = ProfileState(pets = emptyList(), settings = settings)
                     _logoutEvent.trySend(Unit)
                 }
                 .onFailure { e ->

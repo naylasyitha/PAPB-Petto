@@ -4,11 +4,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.papb.petto.data.repository.PetRepository
-import com.papb.petto.data.repository.PetRepositoryImpl
+import com.papb.petto.data.repository.SampleAwarePetRepository
 import com.papb.petto.data.repository.ProfileRepository
 import com.papb.petto.data.repository.ProfileRepositoryImpl
 import com.papb.petto.data.repository.ScheduleRepository
-import com.papb.petto.data.repository.ScheduleRepositoryImpl
+import com.papb.petto.data.repository.SampleAwareScheduleRepository
 import com.papb.petto.ui.components.BottomTab
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +18,8 @@ import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val userRepository: ProfileRepository = ProfileRepositoryImpl(),
-    private val petRepository: PetRepository = PetRepositoryImpl(),
-    private val scheduleRepository: ScheduleRepository = ScheduleRepositoryImpl()
+    private val petRepository: PetRepository = SampleAwarePetRepository(),
+    private val scheduleRepository: ScheduleRepository = SampleAwareScheduleRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeScreenState())
@@ -71,12 +71,12 @@ class HomeViewModel(
                         _uiState.update { state ->
                             state.copy(
                                 petCountText = petCountMsg,
-                                schedules = items.ifEmpty { state.schedules }
+                                schedules = items
                             )
                         }
                     }
                 } else {
-                    _uiState.update { it.copy(petCountText = petCountMsg) }
+                    _uiState.update { it.copy(petCountText = petCountMsg, schedules = emptyList()) }
                 }
             }
         }

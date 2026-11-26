@@ -52,6 +52,8 @@ import com.papb.petto.ui.missing.MissingPetsState
 import com.papb.petto.ui.missing.MissingPetsViewModel
 import com.papb.petto.ui.missing.MissingPreviewData
 import com.papb.petto.ui.theme.PettoTheme
+import androidx.compose.runtime.LaunchedEffect
+import com.papb.petto.data.repository.DummyCommunityRepository
 
 enum class CommunityTab(val label: String) {
     FORUM("Forum"),
@@ -69,6 +71,29 @@ fun CommunityScreen(
     missingViewModel: MissingPetsViewModel = viewModel()
 ) {
     val missingState by missingViewModel.uiState.collectAsState()
+
+    val communityRepository = remember { DummyCommunityRepository() }
+    val communityViewModel: CommunityViewModel = viewModel(
+        factory = CommunityViewModel.factory(communityRepository)
+    )
+    val communityState by communityViewModel.uiState.collectAsState()
+
+    var selectedArticleId by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) {
+        communityViewModel.load()
+    }
+
+    val article = communityState.articles.firstOrNull { it.id == selectedArticleId }
+    if (article != null) {
+        ArticleDetailScreen(
+            article = article,
+            relatedArticles = communityState.articles.filter { it.id != article.id }.take(3),
+            onRelatedClick = { id -> selectedArticleId = id },
+            onBack = { selectedArticleId = null }
+        )
+        return
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -91,6 +116,11 @@ fun CommunityScreen(
         onCardClick = missingViewModel::onCardClicked,
         onDetailDismiss = missingViewModel::onDetailDismissed,
         onMarkFound = missingViewModel::onMarkFoundClicked,
+        communityState = communityState,
+        onForumFilterChange = communityViewModel::onForumFilterChange,
+        onArticleQueryChange = communityViewModel::onArticleQueryChange,
+        onArticleCategoryChange = communityViewModel::onArticleCategoryChange,
+        onArticleClick = { id -> selectedArticleId = id },
         onLocationDialogConfirm = {
             permissionLauncher.launch(
                 arrayOf(
@@ -120,7 +150,12 @@ fun CommunityContent(
     onDetailDismiss: () -> Unit,
     onMarkFound: (MissingCardItem) -> Unit,
     onLocationDialogConfirm: () -> Unit,
-    onLocationDialogDismiss: () -> Unit
+    onLocationDialogDismiss: () -> Unit,
+    communityState: CommunityUiState = CommunityUiState(),
+    onForumFilterChange: (String) -> Unit = {},
+    onArticleQueryChange: (String) -> Unit = {},
+    onArticleCategoryChange: (String) -> Unit = {},
+    onArticleClick: (Int) -> Unit = {}
 ) {
     val colors = MaterialTheme.colorScheme
     var currentCommunityTab by remember { mutableStateOf(CommunityTab.MISSING) }
@@ -166,7 +201,7 @@ fun CommunityContent(
                 }
             }
 
-            // --- Slider Forum | Missing | Education ---
+            // Slider Forum | Missing | Education
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = colors.surfaceVariant,
@@ -210,16 +245,19 @@ fun CommunityContent(
                     modifier = Modifier.weight(1f)
                 )
 
-                CommunityTab.FORUM, CommunityTab.EDUCATION -> Box(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "${currentCommunityTab.label} is coming soon",
-                        fontSize = 14.sp,
-                        color = colors.onSurfaceVariant
-                    )
-                }
+                CommunityTab.FORUM -> ForumContent(
+                    uiState = communityState,
+                    onForumFilterChange = onForumFilterChange,
+                    modifier = Modifier.weight(1f)
+                )
+
+                CommunityTab.EDUCATION -> EducationContent(
+                    uiState = communityState,
+                    onArticleQueryChange = onArticleQueryChange,
+                    onArticleCategoryChange = onArticleCategoryChange,
+                    onArticleClick = onArticleClick,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 

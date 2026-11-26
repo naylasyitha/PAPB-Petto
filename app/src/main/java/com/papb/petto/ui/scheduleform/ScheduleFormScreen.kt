@@ -1,5 +1,6 @@
 package com.papb.petto.ui.scheduleform
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,11 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.papb.petto.R
+import com.papb.petto.util.ScheduleDates
+import java.util.Calendar
 import com.papb.petto.ui.theme.PettoTheme
 
 @Composable
 fun ScheduleFormScreen(
     isEditMode: Boolean = false,
+    petId: String? = null,
     scheduleId: String? = null,
     viewModel: ScheduleFormViewModel = viewModel(),
     onBackClick: () -> Unit = {},
@@ -64,16 +68,12 @@ fun ScheduleFormScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(isEditMode, scheduleId) {
-        viewModel.resetFormState()
-        viewModel.setupForm(isEditMode, scheduleId)
+    LaunchedEffect(isEditMode, petId, scheduleId) {
+        viewModel.setupForm(isEditMode, petId, scheduleId)
     }
 
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
-            viewModel.resetFormState()
-            onFormSuccess()
-        }
+    LaunchedEffect(Unit) {
+        viewModel.successEvent.collect { onFormSuccess() }
     }
 
     ScheduleFormContent(
@@ -109,6 +109,23 @@ fun ScheduleFormContent(
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
+
+    fun openDatePicker() {
+        val cal = Calendar.getInstance()
+        ScheduleDates.parse(state.lastDoneDate)?.let { cal.time = it }
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val picked = Calendar.getInstance().apply { set(year, month, day) }
+                onLastDoneDateChange(ScheduleDates.format(picked.time))
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
     val headerTitle = if (state.isEditMode) "Edit Schedule" else "Add Schedule"
     val submitButtonText = if (state.isEditMode) "Save Changes" else "Save Schedule"
 
@@ -245,29 +262,38 @@ fun ScheduleFormContent(
                     color = colors.onBackground
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = state.lastDoneDate,
-                    onValueChange = onLastDoneDateChange,
-                    placeholder = { Text("Oct 20, 2025", color = Color.Gray) },
-                    singleLine = true,
-                    trailingIcon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.calendar),
-                            contentDescription = "Select Date",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = colors.surfaceVariant,
-                        unfocusedContainerColor = colors.surfaceVariant,
-                        focusedBorderColor = colors.outline,
-                        unfocusedBorderColor = colors.outline,
-                        focusedTextColor = colors.onBackground,
-                        unfocusedTextColor = colors.onBackground
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = state.lastDoneDate,
+                        onValueChange = {},
+                        readOnly = true,
+                        placeholder = { Text("Pick a date", color = Color.Gray) },
+                        singleLine = true,
+                        trailingIcon = {
+                            Image(
+                                painter = painterResource(id = R.drawable.calendar),
+                                contentDescription = "Select Date",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surfaceVariant,
+                            unfocusedContainerColor = colors.surfaceVariant,
+                            focusedBorderColor = colors.outline,
+                            unfocusedBorderColor = colors.outline,
+                            focusedTextColor = colors.onBackground,
+                            unfocusedTextColor = colors.onBackground
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    // TextField readOnly menelan tap, jadi tap ditangkap di lapisan ini
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { openDatePicker() }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -315,9 +341,7 @@ fun ScheduleFormContent(
                                 Image(
                                     painter = painterResource(id = R.drawable.dropdown),
                                     contentDescription = "Dropdown",
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { onIntervalDropdownExpandedChange(!state.isIntervalDropdownExpanded) }
+                                    modifier = Modifier.size(16.dp)
                                 )
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -329,8 +353,13 @@ fun ScheduleFormContent(
                                 focusedTextColor = colors.onBackground,
                                 unfocusedTextColor = colors.onBackground
                             ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // TextField readOnly menelan tap, jadi tap ditangkap di lapisan ini
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .matchParentSize()
                                 .clickable { onIntervalDropdownExpandedChange(!state.isIntervalDropdownExpanded) }
                         )
 
@@ -610,8 +639,9 @@ fun ScheduleFormContent(
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = errorMsg,
-                    color = colors.error,
-                    fontSize = 12.sp
+                    color = Color(0xFFD50000),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -620,6 +650,7 @@ fun ScheduleFormContent(
             // --- PRIMARY SUBMIT BUTTON ---
             Button(
                 onClick = onSaveClick,
+                enabled = !state.isLoading,
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                 modifier = Modifier
@@ -627,7 +658,7 @@ fun ScheduleFormContent(
                     .height(50.dp)
             ) {
                 Text(
-                    text = submitButtonText,
+                    text = if (state.isLoading) "Saving..." else submitButtonText,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

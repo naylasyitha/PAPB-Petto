@@ -17,11 +17,11 @@ data class SettingMenuItem(
 )
 
 data class ProfileState(
-    val userName: String = "Anasya Laili",
-    val userEmail: String = "anasyalaili@gmail.com",
+    val userName: String = "",
+    val userEmail: String = "",
     val currentTab: BottomTab = BottomTab.PROFILE,
     val pets: List<PetProfileItem> = listOf(),
+    val petsError: String? = null,
     val settings: List<SettingMenuItem> = listOf(),
-    val isLoggingOut: Boolean = false,
-    val isLoggedOut: Boolean = false
+    val isLoggingOut: Boolean = false
 )

@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
 fun PettoApp() {
     var currentScreen by rememberSaveable { mutableStateOf(AppScreenState.HOME) }
     var selectedPetId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedScheduleId by rememberSaveable { mutableStateOf<String?>(null) }
     var loginNotice by rememberSaveable { mutableStateOf<String?>(null) }
     var sessionChecked by rememberSaveable { mutableStateOf(false) }
 
@@ -124,8 +125,8 @@ fun PettoApp() {
             RegisterScreen(
                 onNavigateToLogin = { currentScreen = AppScreenState.LOGIN },
                 onRegisterSuccess = {
-                    loginNotice = null
-                    currentScreen = AppScreenState.HOME
+                    loginNotice = "Account created! Check your email to confirm it, then log in."
+                    currentScreen = AppScreenState.LOGIN
                 }
             )
         }
@@ -182,8 +183,8 @@ fun PettoApp() {
         }
         AppScreenState.PET_DETAIL -> {
             BackHandler { currentScreen = AppScreenState.PROFILE }
-            // TODO: PetDetailScreen belum menerima petId. Tambahkan parameter
             PetDetailScreen(
+                petId = selectedPetId,
                 onBackClick = {
                     currentScreen = AppScreenState.PROFILE
                 },
@@ -193,7 +194,8 @@ fun PettoApp() {
                 onAddScheduleClick = {
                     currentScreen = AppScreenState.ADD_SCHEDULE
                 },
-                onEditScheduleClick = {
+                onEditScheduleClick = { scheduleId ->
+                    selectedScheduleId = scheduleId
                     currentScreen = AppScreenState.EDIT_SCHEDULE
                 }
             )
@@ -238,6 +240,7 @@ fun PettoApp() {
             BackHandler { currentScreen = AppScreenState.PET_DETAIL }
             ScheduleFormScreen(
                 isEditMode = false,
+                petId = selectedPetId,
                 onBackClick = {
                     currentScreen = AppScreenState.PET_DETAIL
                 },
@@ -248,10 +251,10 @@ fun PettoApp() {
         }
         AppScreenState.EDIT_SCHEDULE -> {
             BackHandler { currentScreen = AppScreenState.PET_DETAIL }
-            // TODO: scheduleId masih hardcode "1"; perlu selectedScheduleId dari PetDetail.
             ScheduleFormScreen(
                 isEditMode = true,
-                scheduleId = "1",
+                petId = selectedPetId,
+                scheduleId = selectedScheduleId,
                 onBackClick = {
                     currentScreen = AppScreenState.PET_DETAIL
                 },

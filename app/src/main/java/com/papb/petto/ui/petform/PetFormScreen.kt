@@ -38,11 +38,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -224,7 +229,14 @@ fun PetFormContent(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
 
-                Box(modifier = Modifier.fillMaxWidth()) {
+                var fieldWidthPx by remember { mutableStateOf(0) }
+                val density = LocalDensity.current
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { fieldWidthPx = it.width }
+                ) {
                     OutlinedTextField(
                         value = state.selectedSpecies,
                         onValueChange = {},
@@ -234,9 +246,7 @@ fun PetFormContent(
                             Image(
                                 painter = painterResource(id = R.drawable.dropdown),
                                 contentDescription = "Dropdown",
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onDropdownExpandedChange(!state.isDropdownExpanded) }
+                                modifier = Modifier.size(16.dp)
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -248,8 +258,13 @@ fun PetFormContent(
                             focusedTextColor = colors.onBackground,
                             unfocusedTextColor = colors.onBackground
                         ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Lapisan transparan: TextField readOnly menelan tap, jadi tap ditangkap di sini
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .matchParentSize()
                             .clickable { onDropdownExpandedChange(!state.isDropdownExpanded) }
                     )
 
@@ -257,7 +272,7 @@ fun PetFormContent(
                         expanded = state.isDropdownExpanded,
                         onDismissRequest = { onDropdownExpandedChange(false) },
                         modifier = Modifier
-                            .fillMaxWidth(0.9f)
+                            .width(with(density) { fieldWidthPx.toDp() })
                             .background(colors.surfaceVariant)
                     ) {
                         state.speciesOptions.forEach { species ->
@@ -508,8 +523,9 @@ fun PetFormContent(
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = errorMsg,
-                    color = colors.error,
-                    fontSize = 12.sp
+                    color = Color(0xFFD50000),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 

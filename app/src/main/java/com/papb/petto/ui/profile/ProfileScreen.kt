@@ -61,10 +61,14 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState.isLoggedOut) {
-        if (uiState.isLoggedOut) {
-            onLogoutSuccess()
-        }
+    // Muat ulang setiap layar Profile tampil (nama dari data register + daftar pet)
+    LaunchedEffect(Unit) {
+        viewModel.loadProfile()
+        viewModel.loadPets()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.logoutEvent.collect { onLogoutSuccess() }
     }
 
     ProfileContent(
@@ -201,6 +205,16 @@ fun ProfileContent(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            state.petsError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = Color(0xFFD50000),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             state.pets.forEach { pet ->
                 PetProfileCard(pet = pet, onClick = { onPetClick(pet.id) })

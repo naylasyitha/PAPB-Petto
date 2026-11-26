@@ -1,49 +1,79 @@
 package com.papb.petto.ui.scheduleform
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.papb.petto.data.model.ScheduleDto
 import com.papb.petto.data.repository.ScheduleRepository
-import com.papb.petto.data.repository.ScheduleRepositoryImpl
+import com.papb.petto.data.repository.SampleAwareScheduleRepository
 import com.papb.petto.util.NotificationHelper
+import com.papb.petto.util.ScheduleDates
+import com.papb.petto.util.failureOf
+import com.papb.petto.util.shortMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ScheduleFormViewModel(
-    private val scheduleRepository: ScheduleRepository = ScheduleRepositoryImpl()
+    private val scheduleRepository: ScheduleRepository = SampleAwareScheduleRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleFormState())
     val uiState: StateFlow<ScheduleFormState> = _uiState.asStateFlow()
 
-    fun resetFormState() {
-        _uiState.update { it.copy(isSuccess = false, errorMessage = null, isLoading = false) }
-    }
+    // Event sekali pakai (ViewModel ini Activity-scoped, jadi jangan simpan flag sukses di state)
+    private val _successEvent = Channel<Unit>(Channel.BUFFERED)
+    val successEvent = _successEvent.receiveAsFlow()
 
-    fun setupForm(isEditMode: Boolean, scheduleId: String? = null) {
-        if (isEditMode) {
-            _uiState.update {
-                ScheduleFormState(
-                    isEditMode = true,
-                    scheduleId = scheduleId ?: "1",
-                    careType = CareTypeOption.VACCINATION,
-                    careName = "Annual Rabies Vaccination",
-                    lastDoneDate = "Oct 17, 2025",
-                    repeatIntervalValue = "12",
-                    repeatIntervalUnit = "Months",
-                    nextDueDate = "Oct 17, 2026",
-                    calculationFormulaText = "Calculated from Last Done Date + 12 months interval.",
-                    remind3DaysText = "Push alert on Oct 14, 2026",
-                    remind1DayText = "Push alert on Oct 16, 2026",
-                    notes = "Klinik Satwa Sehat recommendations"
-                )
-            }
-        } else {
-            _uiState.update { ScheduleFormState(isEditMode = false) }
+    private var loadedSchedule: ScheduleDto? = null
+    private var setupJob: Job? = null
+
+    fun setupForm(isEditMode: Boolean, petId: String?, scheduleId: String?) {
+        setupJob?.cancel()
+        loadedSchedule = null
+        while (_successEvent.tryReceive().isSuccess) { /* buang event lama */ }
+
+        if (!isEditMode) {
+            _uiState.value = withDates(
+                ScheduleFormState(petId = petId, lastDoneDate = ScheduleDates.today())
+            )
+            return
+        }
+
+        if (petId == null || scheduleId == null) {
+            _uiState.value = ScheduleFormState(isEditMode = true, errorMessage = "Schedule not selected")
+            return
+        }
+
+        _uiState.value = ScheduleFormState(
+            isEditMode = true,
+            petId = petId,
+            scheduleId = scheduleId,
+            isLoading = true
+        )
+        setupJob = viewModelScope.launch {
+            scheduleRepository.getSchedulesForPet(petId)
+                .onSuccess { list ->
+                    val dto = list.firstOrNull { it.id == scheduleId }
+                    if (dto == null) {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Schedule not found") }
+                    } else {
+                        loadedSchedule = dto
+                        _uiState.value = withDates(dto.toFormState(petId))
+                    }
+                }
+                .onFailure { e ->
+                    Log.e("ScheduleFormViewModel", "Gagal memuat jadwal", e)
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = e.shortMessage("Failed to load schedule"))
+                    }
+                }
         }
     }
 
@@ -56,20 +86,19 @@ class ScheduleFormViewModel(
     }
 
     fun onLastDoneDateChange(date: String) {
-        _uiState.update {
-            it.copy(lastDoneDate = date, errorMessage = null)
-        }
-        recalculateDueDate()
+        _uiState.update { withDates(it.copy(lastDoneDate = date, errorMessage = null)) }
     }
 
     fun onIntervalValueChange(value: String) {
-        _uiState.update { it.copy(repeatIntervalValue = value) }
-        recalculateDueDate()
+        _uiState.update {
+            withDates(it.copy(repeatIntervalValue = value.filter { c -> c.isDigit() }.take(3)))
+        }
     }
 
     fun onIntervalUnitSelected(unit: String) {
-        _uiState.update { it.copy(repeatIntervalUnit = unit, isIntervalDropdownExpanded = false) }
-        recalculateDueDate()
+        _uiState.update {
+            withDates(it.copy(repeatIntervalUnit = unit, isIntervalDropdownExpanded = false))
+        }
     }
 
     fun onIntervalDropdownExpandedChange(expanded: Boolean) {
@@ -88,59 +117,112 @@ class ScheduleFormViewModel(
         _uiState.update { it.copy(notes = notes) }
     }
 
-    private fun recalculateDueDate() {
-        val state = _uiState.value
-        val intervalVal = state.repeatIntervalValue.toIntOrNull() ?: 12
-        val unit = state.repeatIntervalUnit
-
-        _uiState.update {
-            it.copy(
-                nextDueDate = "Oct 20, 2026",
-                calculationFormulaText = "Calculated from Last Done Date + $intervalVal ${unit.lowercase()} interval.",
-                remind3DaysText = "Push alert on Oct 17, 2026",
-                remind1DayText = "Push alert on Oct 19, 2026"
+    /** Hitung Next Due Date dari Last Done Date + interval. */
+    private fun withDates(state: ScheduleFormState): ScheduleFormState {
+        val last = ScheduleDates.parse(state.lastDoneDate)
+        val value = state.repeatIntervalValue.toIntOrNull()
+        if (last == null || value == null || value <= 0) {
+            return state.copy(
+                nextDueDate = "-",
+                calculationFormulaText = "Pick a last done date and a repeat interval to calculate.",
+                remind3DaysText = "",
+                remind1DayText = ""
             )
         }
+        val next = ScheduleDates.addInterval(last, value, state.repeatIntervalUnit)
+        return state.copy(
+            nextDueDate = ScheduleDates.format(next),
+            calculationFormulaText =
+                "Calculated from Last Done Date + $value ${state.repeatIntervalUnit.lowercase()} interval.",
+            remind3DaysText = "Push alert on ${ScheduleDates.format(ScheduleDates.minusDays(next, 3))}",
+            remind1DayText = "Push alert on ${ScheduleDates.format(ScheduleDates.minusDays(next, 1))}"
+        )
     }
 
     fun onSaveScheduleClicked(context: Context) {
         val state = _uiState.value
+        if (state.isLoading) return
+
+        val petId = state.petId
+        if (petId == null) {
+            _uiState.update { it.copy(errorMessage = "Pet not selected") }
+            return
+        }
         if (state.careName.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Please enter care name") }
             return
         }
+        val lastDone = ScheduleDates.parse(state.lastDoneDate)
+        if (lastDone == null) {
+            _uiState.update { it.copy(errorMessage = "Please pick the last done date") }
+            return
+        }
+        val interval = state.repeatIntervalValue.toIntOrNull()?.takeIf { it > 0 }
+        if (interval == null) {
+            _uiState.update { it.copy(errorMessage = "Repeat interval must be at least 1") }
+            return
+        }
+
+        val appContext = context.applicationContext
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val scheduleDto = ScheduleDto(
+
+            val dto = ScheduleDto(
                 id = state.scheduleId ?: java.util.UUID.randomUUID().toString(),
-                petId = "1",
+                petId = petId,
                 careType = state.careType.name,
                 careName = state.careName.trim(),
-                lastDoneDate = state.lastDoneDate.ifBlank { "Oct 20, 2025" },
-                repeatIntervalValue = state.repeatIntervalValue.toIntOrNull() ?: 12,
+                lastDoneDate = ScheduleDates.format(lastDone),
+                repeatIntervalValue = interval,
                 repeatIntervalUnit = state.repeatIntervalUnit,
                 nextDueDate = state.nextDueDate,
                 remind3Days = state.remind3DaysBefore,
                 remind1Day = state.remind1DayBefore,
-                notes = state.notes,
-                status = "upcoming"
+                notes = state.notes.trim(),
+                status = loadedSchedule?.status ?: "upcoming"
             )
 
-            if (state.isEditMode) {
-                scheduleRepository.updateSchedule(scheduleDto)
-            } else {
-                scheduleRepository.addSchedule(scheduleDto)
+            val failure = failureOf {
+                if (state.isEditMode) scheduleRepository.updateSchedule(dto)
+                else scheduleRepository.addSchedule(dto)
             }
 
-            // Send local push notification reminder
-            NotificationHelper.sendCareReminderNotification(
-                context = context,
-                title = "🐾 Petto Schedule Saved: ${state.careName}",
-                message = "Reminder set for ${state.nextDueDate}. ${if (state.remind3DaysBefore) "H-3 & " else ""}${if (state.remind1DayBefore) "H-1 " else ""}alerts active!"
-            )
+            if (failure != null) {
+                Log.e("ScheduleFormViewModel", "Simpan jadwal gagal", failure)
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = failure.shortMessage("Failed to save schedule"))
+                }
+                return@launch
+            }
 
-            _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+            runCatching {
+                NotificationHelper.sendCareReminderNotification(
+                    context = appContext,
+                    title = "🐾 Petto Schedule Saved: ${state.careName.trim()}",
+                    message = "Reminder set for ${state.nextDueDate}. " +
+                        "${if (state.remind3DaysBefore) "H-3 & " else ""}" +
+                        "${if (state.remind1DayBefore) "H-1 " else ""}alerts active!"
+                )
+            }
+
+            _uiState.update { it.copy(isLoading = false) }
+            _successEvent.trySend(Unit)
         }
     }
+
+    private fun ScheduleDto.toFormState(petId: String) = ScheduleFormState(
+        isEditMode = true,
+        petId = petId,
+        scheduleId = id,
+        careType = runCatching { CareTypeOption.valueOf(careType.uppercase()) }
+            .getOrDefault(CareTypeOption.OTHER),
+        careName = careName,
+        lastDoneDate = lastDoneDate,
+        repeatIntervalValue = repeatIntervalValue.toString(),
+        repeatIntervalUnit = repeatIntervalUnit,
+        remind3DaysBefore = remind3Days,
+        remind1DayBefore = remind1Day,
+        notes = notes
+    )
 }

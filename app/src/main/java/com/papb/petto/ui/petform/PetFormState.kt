@@ -16,7 +16,7 @@ data class PetFormState(
     val weightKg: String = "",
     val isSpayedNeutered: Boolean = false,
     val notes: String = "",
-    val imageRes: Int = R.drawable.user_profile,
+    val imageRes: Int = R.drawable.ic_pet_default,
     val isDropdownExpanded: Boolean = false,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,

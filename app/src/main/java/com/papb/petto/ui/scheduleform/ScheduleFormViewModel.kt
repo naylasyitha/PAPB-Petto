@@ -9,7 +9,7 @@ import com.papb.petto.data.repository.ScheduleRepository
 import com.papb.petto.data.repository.SampleAwareScheduleRepository
 import com.papb.petto.util.NotificationHelper
 import com.papb.petto.util.ScheduleDates
-import com.papb.petto.util.failureOf
+import com.papb.petto.util.executeCatching
 import com.papb.petto.util.shortMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -27,7 +27,6 @@ class ScheduleFormViewModel(
     private val _uiState = MutableStateFlow(ScheduleFormState())
     val uiState: StateFlow<ScheduleFormState> = _uiState.asStateFlow()
 
-    // Event sekali pakai (ViewModel ini Activity-scoped, jadi jangan simpan flag sukses di state)
     private val _successEvent = Channel<Unit>(Channel.BUFFERED)
     val successEvent = _successEvent.receiveAsFlow()
 
@@ -37,7 +36,7 @@ class ScheduleFormViewModel(
     fun setupForm(isEditMode: Boolean, petId: String?, scheduleId: String?) {
         setupJob?.cancel()
         loadedSchedule = null
-        while (_successEvent.tryReceive().isSuccess) { /* buang event lama */ }
+        while (_successEvent.tryReceive().isSuccess) { /* drain */ }
 
         if (!isEditMode) {
             _uiState.value = withDates(
@@ -117,7 +116,6 @@ class ScheduleFormViewModel(
         _uiState.update { it.copy(notes = notes) }
     }
 
-    /** Hitung Next Due Date dari Last Done Date + interval. */
     private fun withDates(state: ScheduleFormState): ScheduleFormState {
         val last = ScheduleDates.parse(state.lastDoneDate)
         val value = state.repeatIntervalValue.toIntOrNull()
@@ -183,7 +181,7 @@ class ScheduleFormViewModel(
                 status = loadedSchedule?.status ?: "upcoming"
             )
 
-            val failure = failureOf {
+            val failure = executeCatching {
                 if (state.isEditMode) scheduleRepository.updateSchedule(dto)
                 else scheduleRepository.addSchedule(dto)
             }

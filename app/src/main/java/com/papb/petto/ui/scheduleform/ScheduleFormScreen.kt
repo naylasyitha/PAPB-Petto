@@ -113,7 +113,7 @@ fun ScheduleFormContent(
 
     fun openDatePicker() {
         val cal = Calendar.getInstance()
-        ScheduleDates.parse(state.lastDoneDate)?.let { cal.time = it }
+        ScheduleDates.toDate(state.lastDoneDate)?.let { cal.time = it }
         DatePickerDialog(
             context,
             { _, year, month, day ->

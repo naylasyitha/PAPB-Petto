@@ -13,7 +13,7 @@ import com.papb.petto.data.repository.ScheduleRepository
 import com.papb.petto.data.repository.SampleAwareScheduleRepository
 import com.papb.petto.data.sample.SampleData
 import com.papb.petto.util.ScheduleDates
-import com.papb.petto.util.failureOf
+import com.papb.petto.util.executeCatching
 import com.papb.petto.util.formatPetAge
 import com.papb.petto.util.formatPetWeight
 import com.papb.petto.util.shortMessage
@@ -34,7 +34,6 @@ class PetDetailViewModel(
 
     private var loadJob: Job? = null
 
-    /** Dipanggil setiap layar Pet Detail tampil (juga saat kembali dari form schedule). */
     fun loadPetDetails(petId: String?) {
         loadJob?.cancel()
 
@@ -43,8 +42,6 @@ class PetDetailViewModel(
             return
         }
 
-        // Ganti pet -> kosongkan dulu supaya data pet sebelumnya tidak terlihat.
-        // Pet yang sama (kembali dari form) -> refresh di tempat, tanpa kedip.
         if (_uiState.value.petId != petId) {
             _uiState.value = PetDetailState(petId = petId, isLoading = true)
         } else {
@@ -74,7 +71,7 @@ class PetDetailViewModel(
             .onSuccess { dtos ->
                 val upcoming = dtos
                     .filter { it.status != "done" }
-                    .sortedBy { ScheduleDates.parse(it.nextDueDate)?.time ?: Long.MAX_VALUE }
+                    .sortedBy { ScheduleDates.parse(it.nextDueDate)?.toEpochDay() ?: Long.MAX_VALUE }
                     .map { it.toScheduleItem() }
                 val past = dtos
                     .filter { it.status == "done" }
@@ -103,7 +100,7 @@ class PetDetailViewModel(
         val petId = _uiState.value.petId
         _uiState.update { it.copy(showDeleteDialog = false, scheduleToDelete = null) }
         viewModelScope.launch {
-            val failure = failureOf { scheduleRepository.deleteSchedule(toDelete.id) }
+            val failure = executeCatching { scheduleRepository.deleteSchedule(toDelete.id) }
             if (failure != null) {
                 Log.e("PetDetailViewModel", "Hapus jadwal gagal", failure)
                 _uiState.update { it.copy(errorMessage = failure.shortMessage("Failed to delete schedule")) }
@@ -120,7 +117,7 @@ class PetDetailViewModel(
     fun onMarkAsDoneClicked(scheduleId: String) {
         val petId = _uiState.value.petId
         viewModelScope.launch {
-            val failure = failureOf { scheduleRepository.markScheduleAsDone(scheduleId) }
+            val failure = executeCatching { scheduleRepository.markScheduleAsDone(scheduleId) }
             if (failure != null) {
                 Log.e("PetDetailViewModel", "Tandai selesai gagal", failure)
                 _uiState.update { it.copy(errorMessage = failure.shortMessage("Failed to update schedule")) }

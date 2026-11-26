@@ -19,22 +19,20 @@ data class PastRecordItem(
 )
 
 data class PetDetailState(
-    val petId: String = "1",
-    val petName: String = "Snowie",
-    val speciesBreed: String = "Dog • Maltese",
-    val ageText: String = "10 months",
-    val weightText: String = "2,1 kg",
-    val reproductiveText: String = "Neutered",
-    val imageRes: Int = R.drawable.snowie,
-    val healthSchedules: List<HealthScheduleItem> = listOf(
-        HealthScheduleItem("1", "Annual Rabies Vaccination", "Oct 17, 2026", "Klinik Satwa Sehat", "upcoming"),
-        HealthScheduleItem("2", "Full Grooming and Spa", "Oct 30, 2026", "PawCare Salon", "upcoming"),
-        HealthScheduleItem("3", "Deworming Routine", "Yesterday, Oct 14, 2026", "Klinik Satwa Sehat", "overdue", isOverdue = true)
-    ),
-    val pastRecords: List<PastRecordItem> = listOf(
-        PastRecordItem("101", "Flea & Tick Prevention", "Sep 30, 2026", "Klinik Satwa Sehat"),
-        PastRecordItem("102", "Annual Wellness Exam", "Aug 28, 2026", "Klinik Satwa Sehat")
-    ),
+    val petId: String = "",
+    val petName: String = "",
+    val speciesBreed: String = "",
+    val ageText: String = "-",
+    val weightText: String = "-",
+    val reproductiveText: String = "-",
+    val isFemale: Boolean = true,
+    val imageRes: Int = R.drawable.ic_pet_default,
+    // Snowie & Hotdog di Profile adalah pet contoh (bukan data database)
+    val isSamplePet: Boolean = false,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val healthSchedules: List<HealthScheduleItem> = emptyList(),
+    val pastRecords: List<PastRecordItem> = emptyList(),
     val scheduleToDelete: HealthScheduleItem? = null,
     val showDeleteDialog: Boolean = false
 )

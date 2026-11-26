@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.papb.petto.data.repository.ProfileRepository
 import com.papb.petto.data.repository.ProfileRepositoryImpl
+import com.papb.petto.util.shortMessage
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +51,7 @@ class EditProfileViewModel(
                         it.copy(
                             fullName = profile?.fullName.orEmpty(),
                             email = email,
-                            phoneNumber = profile?.phone.orEmpty(),
+                            phoneNumber = cleanPhone(profile?.phone.orEmpty()),
                             homeAddressTitle = profile?.homeTitle ?: NO_ADDRESS,
                             homeAddressSubtitle = profile?.homeSubtitle.orEmpty(),
                             alertRadiusKm = (profile?.alertRadiusKm ?: 2).toFloat().coerceIn(1f, 5f),
@@ -64,7 +65,7 @@ class EditProfileViewModel(
                         it.copy(
                             email = email,
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load profile"
+                            errorMessage = e.shortMessage("Failed to load profile")
                         )
                     }
                 }
@@ -80,7 +81,7 @@ class EditProfileViewModel(
     }
 
     fun onPhoneNumberChange(phone: String) {
-        _uiState.update { it.copy(phoneNumber = phone, errorMessage = null) }
+        _uiState.update { it.copy(phoneNumber = cleanPhone(phone), errorMessage = null) }
     }
 
     fun onAlertRadiusChange(radius: Float) {
@@ -115,7 +116,7 @@ class EditProfileViewModel(
 
             var result = profileRepository.saveProfile(
                 fullName = state.fullName.trim(),
-                phone = state.phoneNumber.trim(),
+                phone = cleanPhone(state.phoneNumber).let { if (it.isEmpty()) "" else "0$it" },
                 alertRadiusKm = state.alertRadiusKm.roundToInt()
             )
             if (result.isSuccess && homeLat != null && homeLng != null) {
@@ -137,9 +138,19 @@ class EditProfileViewModel(
                 .onFailure { e ->
                     Log.e("EditProfileViewModel", "Simpan profil gagal", e)
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = e.message ?: "Failed to save profile")
+                        it.copy(isLoading = false, errorMessage = e.shortMessage("Failed to save profile"))
                     }
                 }
         }
     }
+}
+
+/**
+ * Field sudah menampilkan +62, jadi buang 0 / 62 di depan dan karakter selain angka.
+ * "081234567890" -> "81234567890". Saat disimpan ditambah 0 lagi (sama seperti format Register).
+ */
+private fun cleanPhone(raw: String): String {
+    var digits = raw.filter { it.isDigit() }
+    if (digits.startsWith("62")) digits = digits.drop(2)
+    return digits.trimStart('0').take(12)
 }

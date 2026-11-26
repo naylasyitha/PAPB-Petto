@@ -26,6 +26,7 @@ import com.papb.petto.ui.petdetail.PetDetailScreen
 import com.papb.petto.ui.petform.PetFormScreen
 import com.papb.petto.ui.profile.ProfileScreen
 import com.papb.petto.ui.scheduleform.ScheduleFormScreen
+import com.papb.petto.ui.servicemap.ServiceMapRoute
 import com.papb.petto.ui.theme.PettoTheme
 
 enum class AppScreenState {
@@ -33,6 +34,7 @@ enum class AppScreenState {
     REGISTER,
     HOME,
     COMMUNITY,
+    SERVICE_MAP,
     REPORT_MISSING,
     NOTIFICATIONS,
     PROFILE,
@@ -71,6 +73,7 @@ fun PettoApp() {
     fun navigateToTab(tab: BottomTab) {
         currentScreen = when (tab) {
             BottomTab.HOME -> AppScreenState.HOME
+            BottomTab.LOCATION -> AppScreenState.SERVICE_MAP
             BottomTab.COMMUNITY -> AppScreenState.COMMUNITY
             BottomTab.PROFILE -> AppScreenState.PROFILE
             else -> currentScreen
@@ -107,6 +110,12 @@ fun PettoApp() {
                 onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
                 onProfileClick = { currentScreen = AppScreenState.PROFILE },
                 onReportMissingClick = { currentScreen = AppScreenState.REPORT_MISSING }
+            )
+        }
+        AppScreenState.SERVICE_MAP -> {
+            BackHandler { currentScreen = AppScreenState.HOME }
+            ServiceMapRoute(
+                onBack = { currentScreen = AppScreenState.HOME }
             )
         }
         AppScreenState.REPORT_MISSING -> {

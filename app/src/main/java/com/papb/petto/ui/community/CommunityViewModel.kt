@@ -41,10 +41,6 @@ class CommunityViewModel(
         }
     }
 
-    fun onTabSelected(tab: CommunityTab) {
-        _uiState.value = _uiState.value.copy(selectedTab = tab)
-    }
-
     fun onForumFilterChange(filter: String) {
         _uiState.value = _uiState.value.copy(forumFilter = filter)
         applyFilters()

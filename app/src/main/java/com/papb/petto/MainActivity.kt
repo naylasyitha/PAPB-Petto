@@ -23,6 +23,7 @@ import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
 import com.papb.petto.ui.community.CommunityScreen
 import com.papb.petto.ui.components.BottomTab
+import com.papb.petto.ui.donation.DonationFlowScreen
 import com.papb.petto.ui.editprofile.EditProfileScreen
 import com.papb.petto.ui.home.HomeScreen
 import com.papb.petto.ui.missing.report.ReportMissingScreen
@@ -39,6 +40,7 @@ enum class AppScreenState {
     LOGIN,
     REGISTER,
     HOME,
+    DONATION,
     COMMUNITY,
     SERVICE_MAP,
     REPORT_MISSING,
@@ -86,6 +88,7 @@ fun PettoApp() {
             BottomTab.HOME -> AppScreenState.HOME
             BottomTab.LOCATION -> AppScreenState.SERVICE_MAP
             BottomTab.COMMUNITY -> AppScreenState.COMMUNITY
+            BottomTab.DONATION -> AppScreenState.DONATION
             BottomTab.PROFILE -> AppScreenState.PROFILE
             else -> currentScreen
         }
@@ -140,7 +143,17 @@ fun PettoApp() {
                 onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
                 onQuickAccessClick = { action ->
                     if (action == "missing_pet") currentScreen = AppScreenState.REPORT_MISSING
-                }
+                },
+                onNavigateToAllCampaigns = { currentScreen = AppScreenState.DONATION },
+                onDonateClick = { currentScreen = AppScreenState.DONATION }
+            )
+        }
+        AppScreenState.DONATION -> {
+            BackHandler { currentScreen = AppScreenState.HOME }
+            DonationFlowScreen(
+                onNavigateBackToHome = { currentScreen = AppScreenState.HOME },
+                currentTab = BottomTab.DONATION,
+                onTabSelected = ::navigateToTab
             )
         }
         AppScreenState.COMMUNITY -> {
@@ -274,4 +287,3 @@ fun PettoApp() {
         }
     }
 }
-

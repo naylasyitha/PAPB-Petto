@@ -2,14 +2,22 @@ package com.papb.petto.data.repository
 
 import com.papb.petto.data.model.PetDto
 import com.papb.petto.data.model.ScheduleDto
+import com.papb.petto.data.remote.SupabaseClient
 import com.papb.petto.data.sample.SampleData
+import io.github.jan.supabase.auth.auth
 
 class SampleAwarePetRepository(
     private val remote: PetRepository = PetRepositoryImpl()
 ) : PetRepository {
 
-    override suspend fun getPetsForCurrentUser(): Result<List<PetDto>> =
-        remote.getPetsForCurrentUser().map { list -> SampleData.pets() + list }
+    override suspend fun getPetsForCurrentUser(): Result<List<PetDto>> {
+        val hasSession = SupabaseClient.client.auth.currentSessionOrNull() != null
+        return if (hasSession) {
+            remote.getPetsForCurrentUser()
+        } else {
+            Result.success(SampleData.pets())
+        }
+    }
 
     override suspend fun getPetById(petId: String): Result<PetDto?> {
         val sample = SampleData.pet(petId)

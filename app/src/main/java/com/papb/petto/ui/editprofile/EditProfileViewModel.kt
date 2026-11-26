@@ -1,15 +1,75 @@
 package com.papb.petto.ui.editprofile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.papb.petto.data.repository.ProfileRepository
+import com.papb.petto.data.repository.ProfileRepositoryImpl
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
-class EditProfileViewModel : ViewModel() {
+class EditProfileViewModel(
+    private val profileRepository: ProfileRepository = ProfileRepositoryImpl()
+) : ViewModel() {
+
+    private companion object {
+        const val NO_ADDRESS = "No address set"
+
+        const val DUMMY_LAT = -6.2441
+        const val DUMMY_LNG = 106.7993
+    }
 
     private val _uiState = MutableStateFlow(EditProfileState())
     val uiState: StateFlow<EditProfileState> = _uiState.asStateFlow()
+
+    private val _saveSuccess = Channel<Unit>(Channel.BUFFERED)
+    val saveSuccessEvent = _saveSuccess.receiveAsFlow()
+
+    private var pendingHomeLat: Double? = null
+    private var pendingHomeLng: Double? = null
+
+    fun resetState() {
+        _uiState.update { it.copy(isSuccess = false, errorMessage = null, isLoading = false) }
+    }
+
+    fun loadProfile() {
+        pendingHomeLat = null
+        pendingHomeLng = null
+        viewModelScope.launch {
+            val email = profileRepository.currentUserEmail().orEmpty()
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            profileRepository.getMyProfile()
+                .onSuccess { profile ->
+                    _uiState.update {
+                        it.copy(
+                            fullName = profile?.fullName.orEmpty(),
+                            email = email,
+                            phoneNumber = profile?.phone.orEmpty(),
+                            homeAddressTitle = profile?.homeTitle ?: NO_ADDRESS,
+                            homeAddressSubtitle = profile?.homeSubtitle.orEmpty(),
+                            alertRadiusKm = (profile?.alertRadiusKm ?: 2).toFloat().coerceIn(1f, 5f),
+                            isLoading = false
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    Log.e("EditProfileViewModel", "Gagal memuat profil", e)
+                    _uiState.update {
+                        it.copy(
+                            email = email,
+                            isLoading = false,
+                            errorMessage = e.message ?: "Failed to load profile"
+                        )
+                    }
+                }
+        }
+    }
 
     fun onFullNameChange(name: String) {
         _uiState.update { it.copy(fullName = name, errorMessage = null) }
@@ -28,6 +88,8 @@ class EditProfileViewModel : ViewModel() {
     }
 
     fun onUseCurrentLocationClicked() {
+        pendingHomeLat = DUMMY_LAT
+        pendingHomeLng = DUMMY_LNG
         _uiState.update {
             it.copy(
                 homeAddressTitle = "Kebayoran Baru",
@@ -38,10 +100,46 @@ class EditProfileViewModel : ViewModel() {
 
     fun onSaveChangesClicked() {
         val state = _uiState.value
-        if (state.fullName.isBlank() || state.email.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Name and Email cannot be empty") }
+        if (state.isLoading) return
+
+        if (state.fullName.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Name cannot be empty") }
             return
         }
-        _uiState.update { it.copy(isSuccess = true) }
+
+        val homeLat = pendingHomeLat
+        val homeLng = pendingHomeLng
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            var result = profileRepository.saveProfile(
+                fullName = state.fullName.trim(),
+                phone = state.phoneNumber.trim(),
+                alertRadiusKm = state.alertRadiusKm.roundToInt()
+            )
+            if (result.isSuccess && homeLat != null && homeLng != null) {
+                result = profileRepository.saveHome(
+                    title = state.homeAddressTitle,
+                    subtitle = state.homeAddressSubtitle,
+                    lat = homeLat,
+                    lng = homeLng
+                )
+            }
+
+            result
+                .onSuccess {
+                    pendingHomeLat = null
+                    pendingHomeLng = null
+                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                    _saveSuccess.trySend(Unit)
+                }
+                .onFailure { e ->
+                    Log.e("EditProfileViewModel", "Simpan profil gagal", e)
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = e.message ?: "Failed to save profile")
+                    }
+                }
+        }
     }
 }

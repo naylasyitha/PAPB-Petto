@@ -65,11 +65,13 @@ fun ScheduleFormScreen(
     val context = LocalContext.current
 
     LaunchedEffect(isEditMode, scheduleId) {
+        viewModel.resetFormState()
         viewModel.setupForm(isEditMode, scheduleId)
     }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
+            viewModel.resetFormState()
             onFormSuccess()
         }
     }

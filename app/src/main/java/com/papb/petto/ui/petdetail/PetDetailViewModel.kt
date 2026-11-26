@@ -138,13 +138,14 @@ class PetDetailViewModel(
             reproductiveText = if (dto.safeIsSpayedNeutered) "Neutered" else "Intact",
             isFemale = !dto.safeGender.equals("male", ignoreCase = true),
             imageRes = SampleData.imageResFor(dto.id) ?: R.drawable.ic_pet_default,
+            imageUrl = dto.imageUrl,
             errorMessage = null
         )
     }
 
     private fun ScheduleDto.toScheduleItem(): HealthScheduleItem {
         val overdue = safeStatus.equals("overdue", ignoreCase = true) ||
-            ScheduleDates.isBeforeToday(safeNextDueDate)
+                ScheduleDates.isBeforeToday(safeNextDueDate)
         return HealthScheduleItem(
             id = id,
             title = careName,

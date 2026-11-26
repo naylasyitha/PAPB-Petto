@@ -2,6 +2,7 @@ package com.papb.petto.ui.editprofile
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.papb.petto.R
 import com.papb.petto.ui.theme.PettoTheme
 
@@ -79,7 +81,8 @@ fun EditProfileScreen(
         onPhoneNumberChange = viewModel::onPhoneNumberChange,
         onAlertRadiusChange = viewModel::onAlertRadiusChange,
         onUseCurrentLocationClick = viewModel::onUseCurrentLocationClicked,
-        onSaveChangesClick = viewModel::onSaveChangesClicked
+        onSaveChangesClick = viewModel::onSaveChangesClicked,
+        onPhotoPicked = viewModel::onPhotoPicked
     )
 }
 
@@ -92,13 +95,14 @@ fun EditProfileContent(
     onPhoneNumberChange: (String) -> Unit,
     onAlertRadiusChange: (Float) -> Unit,
     onUseCurrentLocationClick: () -> Unit,
-    onSaveChangesClick: () -> Unit
+    onSaveChangesClick: () -> Unit,
+    onPhotoPicked: (Uri) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> }
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? -> uri?.let(onPhotoPicked) }
 
     Box(
         modifier = Modifier
@@ -148,17 +152,34 @@ fun EditProfileContent(
                 contentAlignment = Alignment.Center
             ) {
                 Box(modifier = Modifier.size(130.dp)) {
-                    Image(
-                        painter = painterResource(id = state.avatarRes),
-                        contentDescription = "User Profile Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
+                    val avatarModifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                    val avatarModel: Any? = state.avatarUri ?: state.avatarUrl
+                    if (avatarModel != null) {
+                        AsyncImage(
+                            model = avatarModel,
+                            contentDescription = "User Profile Avatar",
+                            placeholder = painterResource(id = state.avatarRes),
+                            error = painterResource(id = state.avatarRes),
+                            contentScale = ContentScale.Crop,
+                            modifier = avatarModifier
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = state.avatarRes),
+                            contentDescription = "User Profile Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = avatarModifier
+                        )
+                    }
 
                     Surface(
-                        onClick = { photoPickerLauncher.launch("image/*") },
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                         shape = CircleShape,
                         color = colors.primary,
                         modifier = Modifier

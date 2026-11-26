@@ -1,7 +1,9 @@
 package com.papb.petto.ui.petform
 
+import android.app.Application
+import android.net.Uri
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.papb.petto.R
 import com.papb.petto.data.model.PetDto
@@ -10,6 +12,7 @@ import com.papb.petto.data.repository.PetRepository
 import com.papb.petto.data.repository.SampleAwarePetRepository
 import com.papb.petto.data.sample.SampleData
 import com.papb.petto.ui.addpet.GenderOption
+import com.papb.petto.util.ImageCompressor
 import com.papb.petto.util.shortMessage
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +22,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class PetFormViewModel(
+class PetFormViewModel @JvmOverloads constructor(
+    application: Application,
     private val petRepository: PetRepository = SampleAwarePetRepository()
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(PetFormState())
     val uiState: StateFlow<PetFormState> = _uiState.asStateFlow()
@@ -67,6 +71,10 @@ class PetFormViewModel(
                     }
                 }
         }
+    }
+
+    fun onPhotoPicked(uri: Uri) {
+        _uiState.update { it.copy(photoUri = uri, errorMessage = null) }
     }
 
     fun onPetNameChange(name: String) {
@@ -130,37 +138,47 @@ class PetFormViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result: Result<Unit> = if (state.isEditMode) {
-                val base = loadedPet
-                if (base == null) {
-                    Result.failure(IllegalStateException("Pet data is not loaded yet"))
-                } else {
-                    petRepository.updatePet(
-                        base.copy(
-                            name = state.petName.trim(),
-                            species = speciesDb,
-                            breed = state.breed.trim(),
-                            gender = genderDb,
-                            ageMonths = ageDb,
-                            weightKg = weightDb,
-                            isSpayedNeutered = state.isSpayedNeutered,
-                            notes = state.notes.trim()
-                        )
-                    )
-                }
+            val base = loadedPet
+            if (state.isEditMode && base == null) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Pet data is not loaded yet") }
+                return@launch
+            }
+
+            val pet = (base.takeIf { state.isEditMode } ?: PetDto()).copy(
+                name = state.petName.trim(),
+                species = speciesDb,
+                breed = state.breed.trim(),
+                gender = genderDb,
+                ageMonths = ageDb,
+                weightKg = weightDb,
+                isSpayedNeutered = state.isSpayedNeutered,
+                notes = state.notes.trim()
+            )
+
+            // Foto di-upload dulu, supaya URL-nya ikut tersimpan bersama data hewan.
+            val photoUri = state.photoUri
+            val imageUrl = if (photoUri == null) {
+                pet.imageUrl
             } else {
-                petRepository.addPet(
-                    PetDto(
-                        name = state.petName.trim(),
-                        species = speciesDb,
-                        breed = state.breed.trim(),
-                        gender = genderDb,
-                        ageMonths = ageDb,
-                        weightKg = weightDb,
-                        isSpayedNeutered = state.isSpayedNeutered,
-                        notes = state.notes.trim()
-                    )
-                )
+                val upload = try {
+                    petRepository.uploadPhoto(pet.id, ImageCompressor.compress(getApplication(), photoUri))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+                upload.getOrElse { e ->
+                    Log.e("PetFormViewModel", "Upload foto gagal", e)
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = e.shortMessage("Failed to upload photo"))
+                    }
+                    return@launch
+                }
+            }
+
+            val finalPet = pet.copy(imageUrl = imageUrl)
+            val result: Result<Unit> = if (state.isEditMode) {
+                petRepository.updatePet(finalPet)
+            } else {
+                petRepository.addPet(finalPet)
             }
 
             result
@@ -188,6 +206,7 @@ class PetFormViewModel(
         weightKg = safeWeightKg,
         isSpayedNeutered = safeIsSpayedNeutered,
         notes = safeNotes,
-        imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default
+        imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default,
+        imageUrl = imageUrl
     )
 }

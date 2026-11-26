@@ -1,5 +1,6 @@
 package com.papb.petto.ui.petform
 
+import android.net.Uri
 import com.papb.petto.R
 import com.papb.petto.data.model.PetSpecies
 import com.papb.petto.ui.addpet.GenderOption
@@ -17,6 +18,8 @@ data class PetFormState(
     val isSpayedNeutered: Boolean = false,
     val notes: String = "",
     val imageRes: Int = R.drawable.ic_pet_default,
+    val photoUri: Uri? = null, // foto yang baru dipilih dari galeri
+    val imageUrl: String? = null, // foto yang sudah tersimpan
     val isDropdownExpanded: Boolean = false,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,

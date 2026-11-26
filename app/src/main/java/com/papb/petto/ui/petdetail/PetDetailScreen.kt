@@ -43,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.papb.petto.R
 import com.papb.petto.ui.theme.PettoTheme
 
@@ -198,12 +199,23 @@ fun PetDetailContent(
                             .height(200.dp)
                             .clip(RoundedCornerShape(14.dp))
                     ) {
-                        Image(
-                            painter = painterResource(id = state.imageRes),
-                            contentDescription = state.petName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (state.imageUrl != null) {
+                            AsyncImage(
+                                model = state.imageUrl,
+                                contentDescription = state.petName,
+                                placeholder = painterResource(id = state.imageRes),
+                                error = painterResource(id = state.imageRes),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = state.imageRes),
+                                contentDescription = state.petName,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
 
                         // Pencil Edit Button
                         if (!state.isSamplePet) Surface(

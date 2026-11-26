@@ -3,6 +3,7 @@ package com.papb.petto.data.repository
 import com.papb.petto.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
@@ -24,7 +25,8 @@ data class MyProfile(
     val homeSubtitle: String? = null,
     val homeLat: Double? = null,
     val homeLng: Double? = null,
-    val alertRadiusKm: Int = 2
+    val alertRadiusKm: Int = 2,
+    val avatarUrl: String? = null
 )
 
 interface ProfileRepository {
@@ -32,6 +34,7 @@ interface ProfileRepository {
     suspend fun saveProfile(fullName: String, phone: String, alertRadiusKm: Int): Result<Unit>
     suspend fun saveHome(title: String, subtitle: String, lat: Double, lng: Double): Result<Unit>
     suspend fun updateMonitoredLocation(lat: Double, lng: Double): Result<Unit>
+    suspend fun uploadAvatar(photo: ByteArray): Result<Unit>
     fun currentUserEmail(): String?
 }
 
@@ -54,7 +57,8 @@ class ProfileRepositoryImpl : ProfileRepository {
                     homeSubtitle = meta.text("home_subtitle"),
                     homeLat = meta.decimal("home_lat"),
                     homeLng = meta.decimal("home_lng"),
-                    alertRadiusKm = meta.number("alert_radius_km") ?: 2
+                    alertRadiusKm = meta.number("alert_radius_km") ?: 2,
+                    avatarUrl = meta.text("avatar_url")
                 )
             )
         } catch (e: Exception) {
@@ -76,6 +80,23 @@ class ProfileRepositoryImpl : ProfileRepository {
             put("home_lat", lat)
             put("home_lng", lng)
         }
+
+    /** Upload foto ke bucket "avatars", lalu simpan URL-nya di metadata akun. */
+    override suspend fun uploadAvatar(photo: ByteArray): Result<Unit> {
+        return try {
+            client.auth.awaitInitialization()
+            val uid = client.auth.currentUserOrNull()?.id
+                ?: return Result.failure(IllegalStateException("Please log in first"))
+            val bucket = client.storage.from("avatars")
+            val path = "$uid/avatar.jpg"
+            bucket.upload(path, photo) { upsert = true }
+            // Nama file selalu sama, jadi ditambah ?v= supaya gambar lama tidak diambil dari cache.
+            val url = "${bucket.publicUrl(path)}?v=${System.currentTimeMillis()}"
+            updateMetadata { put("avatar_url", url) }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /** Lokasi pantau disimpan di database, karena fungsi notifikasi di server membaca dari sana. */
     override suspend fun updateMonitoredLocation(lat: Double, lng: Double): Result<Unit> {

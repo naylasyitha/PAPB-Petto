@@ -27,6 +27,7 @@ data class PetDetailState(
     val reproductiveText: String = "-",
     val isFemale: Boolean = true,
     val imageRes: Int = R.drawable.ic_pet_default,
+    val imageUrl: String? = null,
     // Snowie & Hotdog di Profile adalah pet contoh (bukan data database)
     val isSamplePet: Boolean = false,
     val isLoading: Boolean = false,

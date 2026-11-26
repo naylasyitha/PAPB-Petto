@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.papb.petto.R
 import com.papb.petto.ui.components.BottomTab
 import com.papb.petto.ui.components.FloatingBottomNavigation
@@ -122,12 +123,23 @@ fun ProfileContent(
                     modifier = Modifier.size(90.dp),
                     color = Color.LightGray
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.user_profile),
-                        contentDescription = "User Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (state.avatarUrl != null) {
+                        AsyncImage(
+                            model = state.avatarUrl,
+                            contentDescription = "User Avatar",
+                            placeholder = painterResource(id = R.drawable.user_profile),
+                            error = painterResource(id = R.drawable.user_profile),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.user_profile),
+                            contentDescription = "User Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -330,14 +342,26 @@ private fun PetProfileCard(pet: PetProfileItem, onClick: () -> Unit = {}) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Pet Image
-            Image(
-                painter = painterResource(id = pet.imageRes),
-                contentDescription = pet.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
+            val petImageModifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(12.dp))
+            if (pet.imageUrl != null) {
+                AsyncImage(
+                    model = pet.imageUrl,
+                    contentDescription = pet.name,
+                    placeholder = painterResource(id = pet.imageRes),
+                    error = painterResource(id = pet.imageRes),
+                    contentScale = ContentScale.Crop,
+                    modifier = petImageModifier
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = pet.imageRes),
+                    contentDescription = pet.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = petImageModifier
+                )
+            }
 
             Spacer(modifier = Modifier.width(14.dp))
 

@@ -1,5 +1,6 @@
 package com.papb.petto.ui.auth
 
+import android.app.Activity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,21 +24,29 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,14 +58,20 @@ import com.papb.petto.ui.theme.PettoTheme
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel = viewModel(),
-    onNavigateToHome: () -> Unit = {},
+    onRegisterSuccess: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
-            onNavigateToHome()
+    LaunchedEffect(Unit) {
+        viewModel.registerSuccessEvent.collect { onRegisterSuccess() }
+    }
+
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        onDispose {
+            val rotating = (context as? Activity)?.isChangingConfigurations == true
+            if (!rotating) viewModel.clearForm()
         }
     }
 
@@ -85,6 +100,7 @@ fun RegisterContent(
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -188,7 +204,7 @@ fun RegisterContent(
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
-                    placeholder = { Text("Enter your email", color = Color.Gray) },
+                    placeholder = { Text("name@gmail.com", color = Color.Gray) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     shape = RoundedCornerShape(12.dp),
@@ -219,7 +235,23 @@ fun RegisterContent(
                     onValueChange = onPasswordChange,
                     placeholder = { Text("Create a password", color = Color.Gray) },
                     singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                painter = painterResource(
+                                    id = if (passwordVisible) R.drawable.ic_visibility_off
+                                    else R.drawable.ic_visibility
+                                ),
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                tint = colors.onSurfaceVariant
+                            )
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -266,13 +298,8 @@ fun RegisterContent(
             }
 
             state.errorMessage?.let { errorMsg ->
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = errorMsg,
-                    color = colors.error,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center
-                )
+                Spacer(modifier = Modifier.height(10.dp))
+                AuthErrorMessage(message = errorMsg)
             }
 
             Spacer(modifier = Modifier.height(20.dp))

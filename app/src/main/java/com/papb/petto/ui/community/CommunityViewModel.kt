@@ -26,8 +26,8 @@ class CommunityViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                allPosts = repository.getForumPosts()
-                allArticles = repository.getArticles()
+                allPosts = repository.getForumPosts().getOrThrow()
+                allArticles = repository.getArticles().getOrThrow()
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 applyFilters()
             } catch (e: CancellationException) {

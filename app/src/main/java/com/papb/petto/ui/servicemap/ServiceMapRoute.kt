@@ -16,7 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationServices
 import com.papb.petto.data.location.DefaultLocationRepository
-import com.papb.petto.data.repository.DummyServiceRepository
+import com.papb.petto.data.repository.ServiceRepositoryImpl
 
 @Composable
 fun ServiceMapRoute(
@@ -31,7 +31,7 @@ fun ServiceMapRoute(
             client = LocationServices.getFusedLocationProviderClient(appContext)
         )
     }
-    val serviceRepository = remember { DummyServiceRepository() }
+    val serviceRepository = remember { ServiceRepositoryImpl() }
 
     val viewModel: ServiceMapViewModel = viewModel(
         factory = ServiceMapViewModel.factory(serviceRepository, locationRepository)

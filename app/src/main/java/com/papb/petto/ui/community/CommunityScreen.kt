@@ -53,7 +53,7 @@ import com.papb.petto.ui.missing.MissingPetsViewModel
 import com.papb.petto.ui.missing.MissingPreviewData
 import com.papb.petto.ui.theme.PettoTheme
 import androidx.compose.runtime.LaunchedEffect
-import com.papb.petto.data.repository.DummyCommunityRepository
+import com.papb.petto.data.repository.CommunityRepositoryImpl
 
 enum class CommunityTab(val label: String) {
     FORUM("Forum"),
@@ -72,7 +72,7 @@ fun CommunityScreen(
 ) {
     val missingState by missingViewModel.uiState.collectAsState()
 
-    val communityRepository = remember { DummyCommunityRepository() }
+    val communityRepository = remember { CommunityRepositoryImpl() }
     val communityViewModel: CommunityViewModel = viewModel(
         factory = CommunityViewModel.factory(communityRepository)
     )

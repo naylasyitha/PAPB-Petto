@@ -372,6 +372,7 @@ fun MidtransSandboxDialog(
 
     // State verifikasi transaksi
     var isVerifying by remember { mutableStateOf(false) }
+    var verificationError by remember { mutableStateOf<String?>(null) }
 
     // Hitung mundur waktu pembayaran (15 menit)
     var timeLeftSeconds by remember { mutableIntStateOf(15 * 60) }
@@ -461,6 +462,43 @@ fun MidtransSandboxDialog(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Status Koneksi Backend Banner
+                if (details?.isRealBackend == false) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFFF3CD),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFEEBA)),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("⚠️ ", fontSize = 14.sp)
+                            Text(
+                                text = "Mode Offline: HP/Emulator tidak memiliki koneksi internet aktif. Nomor VA di bawah adalah simulasi lokal (12808...).",
+                                fontSize = 11.sp,
+                                color = Color(0xFF856404),
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFD4EDDA),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC3E6CB)),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("✓ ", fontSize = 14.sp, color = Color(0xFF155724), fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "Terdaftar Resmi di Midtrans Sandbox: Nomor ini siap diuji coba di Simulator Midtrans.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF155724),
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+
                 // Header Total Pembayaran
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -642,9 +680,37 @@ fun MidtransSandboxDialog(
                             Text("Petunjuk Uji Coba Simulator Sandbox:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PettoDarkBrownText)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("1. Klik 'Salin' pada nomor Virtual Account di atas.", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text("2. Klik tombol 'Buka Simulator Midtrans' di bawah.", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text("3. Masukkan nomor VA, klik Inquire lalu klik Pay.", fontSize = 11.sp, color = PettoSubtitleColor)
-                            Text("4. Kembali ke Petto dan tekan 'Saya Sudah Membayar'.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("2. Buka simulator di web, masukkan nomor VA, klik Inquire lalu Pay.", fontSize = 11.sp, color = PettoSubtitleColor)
+                            Text("3. Kembali ke Petto dan tekan 'Saya Sudah Membayar'.", fontSize = 11.sp, color = PettoSubtitleColor)
+                        }
+                    }
+                }
+
+                // Banner Peringatan jika Verifikasi Belum Berhasil
+                if (verificationError != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFFEBEE),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCDD2)),
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("❌ ", fontSize = 13.sp)
+                                Text(
+                                    text = "Belum Terverifikasi",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFB71C1C)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = verificationError ?: "",
+                                fontSize = 11.sp,
+                                color = Color(0xFFB71C1C),
+                                lineHeight = 15.sp
+                            )
                         }
                     }
                 }
@@ -664,7 +730,7 @@ fun MidtransSandboxDialog(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Memverifikasi transaksi dengan server Midtrans...",
+                            text = "Memverifikasi transaksi ke server Midtrans...",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = PettoPrimaryBrown
@@ -697,7 +763,7 @@ fun MidtransSandboxDialog(
                     )
                 }
 
-                // Opsi Tambahan bagi Penguji / Demo: Buka Sandbox Web Simulator Midtrans
+                // Opsi Buka Simulator Midtrans Web
                 OutlinedButton(
                     onClick = {
                         try {
@@ -720,6 +786,30 @@ fun MidtransSandboxDialog(
                     )
                 }
 
+                // Salin Link Simulator (Sangat berguna jika browser emulator mengalami DNS issue)
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(simulatorUrl))
+                        Toast.makeText(context, "Tautan simulator disalin! Bisa dibuka di browser laptop.", Toast.LENGTH_LONG).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Salin Tautan Simulator (Untuk Browser PC) 📋", fontSize = 11.sp, color = PettoPrimaryBrown)
+                }
+
+                // Opsi Bypass untuk Demo / Presentasi (Hanya muncul jika verifikasi pending/gagal atau mode offline)
+                if (verificationError != null || details?.isRealBackend == false) {
+                    OutlinedButton(
+                        onClick = { onSuccessCallback(state.transaction) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF856404)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFEEBA)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("⚡ Paksa Selesai (Simulasi Demo Sukses)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
                 // Tombol Batal
                 OutlinedButton(
                     onClick = { onFailureCallback("Pembayaran dibatalkan.") },
@@ -732,15 +822,34 @@ fun MidtransSandboxDialog(
         }
     )
 
-    // Efek simulasi verifikasi: saat pengguna mengklik "Saya Sudah Membayar",
-    // verifikasi dengan Midtrans API, lalu selesaikan pembayaran.
+    // Efek verifikasi pembayaran: Memeriksa langsung ke server Midtrans Core API
     LaunchedEffect(isVerifying) {
         if (isVerifying) {
-            try {
-                MidtransClient.checkPaymentStatus(state.transaction.transactionId)
-            } catch (_: Exception) {}
-            delay(1000L)
-            onSuccessCallback(state.transaction)
+            verificationError = null
+            delay(600L) // UI feedback
+
+            val status = MidtransClient.checkPaymentStatus(state.transaction.transactionId)
+            when (status.lowercase()) {
+                "settlement", "capture" -> {
+                    onSuccessCallback(state.transaction)
+                }
+                "pending" -> {
+                    isVerifying = false
+                    verificationError = "Status di Midtrans masih PENDING. Pastikan Anda sudah membuka Simulator Midtrans, klik 'Inquire', lalu klik 'Pay' sebelum memverifikasi."
+                }
+                "not_found" -> {
+                    isVerifying = false
+                    verificationError = "Transaksi tidak ditemukan di server Midtrans Sandbox. Hal ini biasanya terjadi jika transaksi dibuat saat perangkat offline."
+                }
+                "network_error" -> {
+                    isVerifying = false
+                    verificationError = "Gagal menghubungi server Midtrans. Periksa koneksi internet HP/Emulator Anda."
+                }
+                else -> {
+                    isVerifying = false
+                    verificationError = "Status transaksi saat ini: $status."
+                }
+            }
         }
     }
 }

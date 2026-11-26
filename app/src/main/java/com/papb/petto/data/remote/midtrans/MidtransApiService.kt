@@ -41,9 +41,18 @@ object MidtransClient {
     // Base URL Core API Sandbox
     private const val BASE_URL = "https://api.sandbox.midtrans.com/"
 
+    private val okHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -87,7 +96,7 @@ object MidtransClient {
                     try {
                         val response = apiService.charge(getAuthHeader(), request)
                         val va = response.vaNumbers?.firstOrNull()?.vaNumber
-                            ?: ("12808" + (Math.abs(orderId.hashCode()) % 90000000 + 10000000).toString())
+                            ?: ("34195" + (Math.abs(orderId.hashCode()) % 90000000 + 10000000).toString())
 
                         Result.success(
                             MidtransPaymentDetails(
@@ -98,8 +107,9 @@ object MidtransClient {
                                 isRealBackend = true
                             )
                         )
-                    } catch (_: Exception) {
-                        // Fallback offline jika terjadi kendala jaringan
+                    } catch (e: Exception) {
+                        android.util.Log.e("PettoMidtrans", "Charge BCA VA failed: ${e.message}", e)
+                        // Fallback jika emulator/perangkat tidak memiliki koneksi internet
                         val fallbackVa = "12808" + (Math.abs(orderId.hashCode()) % 90000000 + 10000000).toString()
                         Result.success(
                             MidtransPaymentDetails(
@@ -132,7 +142,8 @@ object MidtransClient {
                                 isRealBackend = true
                             )
                         )
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        android.util.Log.e("PettoMidtrans", "Charge Mandiri failed: ${e.message}", e)
                         Result.success(
                             MidtransPaymentDetails(
                                 orderId = orderId,
@@ -167,7 +178,8 @@ object MidtransClient {
                                 isRealBackend = true
                             )
                         )
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        android.util.Log.e("PettoMidtrans", "Charge QRIS failed: ${e.message}", e)
                         Result.success(
                             MidtransPaymentDetails(
                                 orderId = orderId,
@@ -198,14 +210,16 @@ object MidtransClient {
 
     /**
      * Memeriksa status transaksi ke Midtrans Core API.
-     * Mengembalikan status (misal: "settlement", "capture", "pending", "expire")
+     * Mengembalikan status (misal: "settlement", "capture", "pending", "not_found", "network_error")
      */
-    suspend fun checkPaymentStatus(orderId: String): String? {
+    suspend fun checkPaymentStatus(orderId: String): String {
         return try {
             val response = apiService.checkStatus(getAuthHeader(), orderId)
-            response.transactionStatus
+            response.transactionStatus ?: "unknown"
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 404) "not_found" else "http_error_${e.code()}"
         } catch (_: Exception) {
-            null
+            "network_error"
         }
     }
 

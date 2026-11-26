@@ -63,9 +63,9 @@ class HomeViewModel(
                             PetScheduleItem(
                                 title = dto.careName,
                                 petName = pets.firstOrNull { it.id == dto.petId }?.name ?: "Pet",
-                                dateLocation = "${dto.nextDueDate} • ${dto.notes.ifBlank { "Regular Checkup" }}",
-                                statusTag = dto.status.replaceFirstChar { it.uppercase() },
-                                isOverdue = dto.status.equals("overdue", ignoreCase = true)
+                                dateLocation = "${dto.safeNextDueDate} • ${dto.safeNotes.ifBlank { "Regular Checkup" }}",
+                                statusTag = dto.safeStatus.replaceFirstChar { it.uppercase() },
+                                isOverdue = dto.safeStatus.equals("overdue", ignoreCase = true)
                             )
                         }
                         _uiState.update { state ->

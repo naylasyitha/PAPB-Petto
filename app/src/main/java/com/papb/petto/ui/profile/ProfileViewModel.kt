@@ -103,8 +103,8 @@ class ProfileViewModel(
         return PetProfileItem(
             id = id,
             name = name,
-            speciesBreed = if (breed.isBlank()) speciesLabel else "$speciesLabel • $breed",
-            ageText = formatPetAge(ageMonths.toIntOrNull() ?: 0),
+            speciesBreed = if (safeBreed.isBlank()) speciesLabel else "$speciesLabel • $safeBreed",
+            ageText = formatPetAge(safeAgeMonths.toIntOrNull() ?: 0),
             imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default
         )
     }

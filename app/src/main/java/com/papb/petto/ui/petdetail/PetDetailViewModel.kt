@@ -70,17 +70,17 @@ class PetDetailViewModel(
         scheduleRepository.getSchedulesForPet(petId)
             .onSuccess { dtos ->
                 val upcoming = dtos
-                    .filter { it.status != "done" }
-                    .sortedBy { ScheduleDates.parse(it.nextDueDate)?.toEpochDay() ?: Long.MAX_VALUE }
+                    .filter { it.safeStatus != "done" }
+                    .sortedBy { ScheduleDates.parse(it.safeNextDueDate)?.toEpochDay() ?: Long.MAX_VALUE }
                     .map { it.toScheduleItem() }
                 val past = dtos
-                    .filter { it.status == "done" }
+                    .filter { it.safeStatus == "done" }
                     .map {
                         PastRecordItem(
                             id = it.id,
                             title = it.careName,
-                            date = it.lastDoneDate,
-                            location = it.notes.ifBlank { "No notes" }
+                            date = it.safeLastDoneDate,
+                            location = it.safeNotes.ifBlank { "No notes" }
                         )
                     }
                 _uiState.update { it.copy(healthSchedules = upcoming, pastRecords = past) }
@@ -132,25 +132,25 @@ class PetDetailViewModel(
         return copy(
             petId = dto.id,
             petName = dto.name,
-            speciesBreed = if (dto.breed.isBlank()) speciesLabel else "$speciesLabel • ${dto.breed}",
-            ageText = formatPetAge(dto.ageMonths.toIntOrNull() ?: 0),
-            weightText = formatPetWeight(dto.weightKg),
-            reproductiveText = if (dto.isSpayedNeutered) "Neutered" else "Intact",
-            isFemale = !dto.gender.equals("male", ignoreCase = true),
+            speciesBreed = if (dto.safeBreed.isBlank()) speciesLabel else "$speciesLabel • ${dto.safeBreed}",
+            ageText = formatPetAge(dto.safeAgeMonths.toIntOrNull() ?: 0),
+            weightText = formatPetWeight(dto.safeWeightKg),
+            reproductiveText = if (dto.safeIsSpayedNeutered) "Neutered" else "Intact",
+            isFemale = !dto.safeGender.equals("male", ignoreCase = true),
             imageRes = SampleData.imageResFor(dto.id) ?: R.drawable.ic_pet_default,
             errorMessage = null
         )
     }
 
     private fun ScheduleDto.toScheduleItem(): HealthScheduleItem {
-        val overdue = status.equals("overdue", ignoreCase = true) ||
-            ScheduleDates.isBeforeToday(nextDueDate)
+        val overdue = safeStatus.equals("overdue", ignoreCase = true) ||
+            ScheduleDates.isBeforeToday(safeNextDueDate)
         return HealthScheduleItem(
             id = id,
             title = careName,
-            date = nextDueDate,
-            location = notes.ifBlank { "No notes" },
-            status = if (overdue) "overdue" else status,
+            date = safeNextDueDate,
+            location = safeNotes.ifBlank { "No notes" },
+            status = if (overdue) "overdue" else safeStatus,
             isOverdue = overdue
         )
     }

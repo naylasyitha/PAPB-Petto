@@ -216,11 +216,11 @@ class ScheduleFormViewModel(
         careType = runCatching { CareTypeOption.valueOf(careType.uppercase()) }
             .getOrDefault(CareTypeOption.OTHER),
         careName = careName,
-        lastDoneDate = lastDoneDate,
-        repeatIntervalValue = repeatIntervalValue.toString(),
-        repeatIntervalUnit = repeatIntervalUnit,
-        remind3DaysBefore = remind3Days,
-        remind1DayBefore = remind1Day,
-        notes = notes
+        lastDoneDate = safeLastDoneDate,
+        repeatIntervalValue = safeRepeatIntervalValue.toString(),
+        repeatIntervalUnit = safeRepeatIntervalUnit,
+        remind3DaysBefore = remind3Days ?: true,
+        remind1DayBefore = remind1Day ?: true,
+        notes = safeNotes
     )
 }

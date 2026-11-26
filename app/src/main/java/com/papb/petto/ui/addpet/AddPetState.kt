@@ -1,5 +1,7 @@
 package com.papb.petto.ui.addpet
 
+import com.papb.petto.data.model.PetSpecies
+
 enum class GenderOption {
     FEMALE,
     MALE
@@ -8,7 +10,7 @@ enum class GenderOption {
 data class AddPetState(
     val petName: String = "",
     val selectedSpecies: String = "",
-    val speciesOptions: List<String> = listOf("Dog", "Cat", "Bunny", "Bird", "Reptile", "Other"),
+    val speciesOptions: List<String> = PetSpecies.entries.map { it.label },
     val breed: String = "",
     val gender: GenderOption = GenderOption.FEMALE,
     val ageMonths: String = "",

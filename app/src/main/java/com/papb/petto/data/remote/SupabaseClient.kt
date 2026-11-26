@@ -7,12 +7,20 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
 
 object SupabaseClient {
-    val client = createSupabaseClient(
-        supabaseUrl = BuildConfig.SUPABASE_URL,
-        supabaseKey = BuildConfig.SUPABASE_ANON_KEY
-    ) {
-        install(Auth)
-        install(Postgrest)
-        install(Storage)
+    val client by lazy {
+        val rawUrl = BuildConfig.SUPABASE_URL.trim()
+        val cleanUrl = if (rawUrl.contains("/rest/v1")) {
+            rawUrl.substringBefore("/rest/v1")
+        } else {
+            rawUrl
+        }
+        createSupabaseClient(
+            supabaseUrl = cleanUrl,
+            supabaseKey = BuildConfig.SUPABASE_ANON_KEY.trim()
+        ) {
+            install(Auth)
+            install(Postgrest)
+            install(Storage)
+        }
     }
 }

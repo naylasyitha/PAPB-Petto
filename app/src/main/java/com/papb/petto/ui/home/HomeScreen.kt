@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.papb.petto.R
+import com.papb.petto.ui.community.NotificationBell
 import com.papb.petto.ui.components.BottomTab
 import com.papb.petto.ui.components.FloatingBottomNavigation
 import com.papb.petto.ui.theme.PettoTheme
@@ -51,29 +53,26 @@ import com.papb.petto.ui.theme.PettoTheme
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
+    unreadNotificationCount: Int = 0,
+    onTabSelected: (BottomTab) -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onQuickAccessClick: (String) -> Unit = {},
     onNavigateToAllCampaigns: () -> Unit = {},
-    onDonateClick: () -> Unit = {},
-    onNavigateToServiceMap: () -> Unit = {},
-    onNavigateToCommunity: () -> Unit = {}
+    onDonateClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     HomeContent(
         state = uiState,
+        unreadNotificationCount = unreadNotificationCount,
         onTabSelected = { tab ->
-            when (tab) {
-                BottomTab.LOCATION -> onNavigateToServiceMap()
-                BottomTab.COMMUNITY -> onNavigateToCommunity()
-                else -> viewModel.onTabSelected(tab)
-            }
+            viewModel.onTabSelected(tab)
+            onTabSelected(tab)
         },
         onNotificationClick = onNotificationClick,
         onQuickAccessClick = onQuickAccessClick,
         onNavigateToAllCampaigns = onNavigateToAllCampaigns,
-        onDonateClick = onDonateClick,
-        onNavigateToServiceMap = onNavigateToServiceMap
+        onDonateClick = onDonateClick
     )
 }
 
@@ -81,11 +80,11 @@ fun HomeScreen(
 fun HomeContent(
     state: HomeScreenState,
     onTabSelected: (BottomTab) -> Unit,
+    unreadNotificationCount: Int = 0,
     onNotificationClick: () -> Unit,
     onQuickAccessClick: (String) -> Unit,
     onNavigateToAllCampaigns: () -> Unit,
-    onDonateClick: () -> Unit,
-    onNavigateToServiceMap: () -> Unit = {}
+    onDonateClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
@@ -123,20 +122,11 @@ fun HomeContent(
                     )
                 }
 
-                Surface(
+                NotificationBell(
+                    count = unreadNotificationCount,
                     onClick = onNotificationClick,
-                    shape = CircleShape,
-                    color = colors.surfaceVariant,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = painterResource(id = R.drawable.notification),
-                            contentDescription = "Notification",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                    size = 48.dp
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -226,10 +216,7 @@ fun HomeContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            NearbyServicesCard(
-                summaryText = state.nearbySummaryText,
-                onMapClick = onNavigateToServiceMap
-            )
+            NearbyServicesCard(summaryText = state.nearbySummaryText)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -267,6 +254,7 @@ fun HomeContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .navigationBarsPadding()
         ) {
             FloatingBottomNavigation(
                 currentTab = state.currentTab,
@@ -394,10 +382,7 @@ private fun PetScheduleCard(item: PetScheduleItem) {
 }
 
 @Composable
-private fun NearbyServicesCard(
-    summaryText: String,
-    onMapClick: () -> Unit = {}
-) {
+private fun NearbyServicesCard(summaryText: String) {
     val colors = MaterialTheme.colorScheme
 
     Card(
@@ -498,7 +483,7 @@ private fun NearbyServicesCard(
                 )
 
                 Button(
-                    onClick = onMapClick,
+                    onClick = { },
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                     modifier = Modifier.height(42.dp)

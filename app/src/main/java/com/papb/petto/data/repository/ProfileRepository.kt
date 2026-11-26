@@ -12,10 +12,13 @@ interface ProfileRepository {
     suspend fun saveProfile(fullName: String, phone: String, alertRadiusKm: Int): Result<Unit>
     suspend fun saveHome(title: String, subtitle: String, lat: Double, lng: Double): Result<Unit>
     suspend fun updateMonitoredLocation(lat: Double, lng: Double): Result<Unit>
+    fun currentUserEmail(): String?
 }
 
 class ProfileRepositoryImpl : ProfileRepository {
     private val client = SupabaseClient.client
+
+    override fun currentUserEmail(): String? = client.auth.currentUserOrNull()?.email
 
     override suspend fun getMyProfile(): Result<UserProfile?> {
         return try {

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.papb.petto.R
 import com.papb.petto.data.repository.AuthRepository
 import com.papb.petto.data.repository.AuthRepositoryImpl
+import com.papb.petto.data.repository.PetRepository
+import com.papb.petto.data.repository.PetRepositoryImpl
 import com.papb.petto.ui.components.BottomTab
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +15,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
-    private val authRepository: AuthRepository = AuthRepositoryImpl()
+    private val authRepository: AuthRepository = AuthRepositoryImpl(),
+    private val petRepository: PetRepository = PetRepositoryImpl()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -43,6 +46,30 @@ class ProfileViewModel(
         )
     )
     val uiState: StateFlow<ProfileState> = _uiState.asStateFlow()
+
+    init {
+        loadUserPets()
+    }
+
+    fun loadUserPets() {
+        viewModelScope.launch {
+            val result = petRepository.getPetsForCurrentUser()
+            result.onSuccess { petsDto ->
+                if (petsDto.isNotEmpty()) {
+                    val petItems = petsDto.map { dto ->
+                        PetProfileItem(
+                            id = dto.id,
+                            name = dto.name,
+                            speciesBreed = "${dto.species} • ${dto.breed}",
+                            ageText = dto.ageMonths,
+                            imageRes = if (dto.name.contains("Hotdog", ignoreCase = true)) R.drawable.hotdog else R.drawable.snowie
+                        )
+                    }
+                    _uiState.update { it.copy(pets = petItems) }
+                }
+            }
+        }
+    }
 
     fun onTabSelected(tab: BottomTab) {
         _uiState.update { it.copy(currentTab = tab) }

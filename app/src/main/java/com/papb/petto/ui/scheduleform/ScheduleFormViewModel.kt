@@ -2,16 +2,27 @@ package com.papb.petto.ui.scheduleform
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.papb.petto.data.model.ScheduleDto
+import com.papb.petto.data.repository.ScheduleRepository
+import com.papb.petto.data.repository.ScheduleRepositoryImpl
 import com.papb.petto.util.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class ScheduleFormViewModel : ViewModel() {
+class ScheduleFormViewModel(
+    private val scheduleRepository: ScheduleRepository = ScheduleRepositoryImpl()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleFormState())
     val uiState: StateFlow<ScheduleFormState> = _uiState.asStateFlow()
+
+    fun resetFormState() {
+        _uiState.update { it.copy(isSuccess = false, errorMessage = null, isLoading = false) }
+    }
 
     fun setupForm(isEditMode: Boolean, scheduleId: String? = null) {
         if (isEditMode) {
@@ -99,13 +110,37 @@ class ScheduleFormViewModel : ViewModel() {
             return
         }
 
-        // Send local push notification reminder
-        NotificationHelper.sendCareReminderNotification(
-            context = context,
-            title = "🐾 Petto Schedule Saved: ${state.careName}",
-            message = "Reminder set for ${state.nextDueDate}. ${if (state.remind3DaysBefore) "H-3 & " else ""}${if (state.remind1DayBefore) "H-1 " else ""}alerts active!"
-        )
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val scheduleDto = ScheduleDto(
+                id = state.scheduleId ?: java.util.UUID.randomUUID().toString(),
+                petId = "1",
+                careType = state.careType.name,
+                careName = state.careName.trim(),
+                lastDoneDate = state.lastDoneDate.ifBlank { "Oct 20, 2025" },
+                repeatIntervalValue = state.repeatIntervalValue.toIntOrNull() ?: 12,
+                repeatIntervalUnit = state.repeatIntervalUnit,
+                nextDueDate = state.nextDueDate,
+                remind3Days = state.remind3DaysBefore,
+                remind1Day = state.remind1DayBefore,
+                notes = state.notes,
+                status = "upcoming"
+            )
 
-        _uiState.update { it.copy(isSuccess = true) }
+            if (state.isEditMode) {
+                scheduleRepository.updateSchedule(scheduleDto)
+            } else {
+                scheduleRepository.addSchedule(scheduleDto)
+            }
+
+            // Send local push notification reminder
+            NotificationHelper.sendCareReminderNotification(
+                context = context,
+                title = "🐾 Petto Schedule Saved: ${state.careName}",
+                message = "Reminder set for ${state.nextDueDate}. ${if (state.remind3DaysBefore) "H-3 & " else ""}${if (state.remind1DayBefore) "H-1 " else ""}alerts active!"
+            )
+
+            _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+        }
     }
 }

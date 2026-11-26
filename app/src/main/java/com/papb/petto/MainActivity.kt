@@ -5,14 +5,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.papb.petto.data.repository.AuthRepositoryImpl
 import com.papb.petto.ui.auth.LoginScreen
 import com.papb.petto.ui.auth.RegisterScreen
 import com.papb.petto.ui.community.CommunityScreen
@@ -60,7 +66,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PettoApp() {
-    var currentScreen by remember { mutableStateOf(AppScreenState.HOME) }
+    var currentScreen by rememberSaveable { mutableStateOf(AppScreenState.HOME) }
+    var selectedPetId by rememberSaveable { mutableStateOf<String?>(null) }
+    var loginNotice by rememberSaveable { mutableStateOf<String?>(null) }
+    var sessionChecked by rememberSaveable { mutableStateOf(false) }
+
     val notificationsViewModel: NotificationsViewModel = viewModel()
     val notificationsState by notificationsViewModel.uiState.collectAsState()
 
@@ -80,17 +90,46 @@ fun PettoApp() {
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (!sessionChecked) {
+            if (!AuthRepositoryImpl().hasSession()) {
+                currentScreen = AppScreenState.LOGIN
+            }
+            sessionChecked = true
+        }
+    }
+
+    if (!sessionChecked) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        )
+        return
+    }
+
     when (currentScreen) {
         AppScreenState.LOGIN -> {
             LoginScreen(
-                onNavigateToRegister = { currentScreen = AppScreenState.REGISTER },
-                onNavigateToHome = { currentScreen = AppScreenState.HOME }
+                infoMessage = loginNotice,
+                onNavigateToRegister = {
+                    loginNotice = null
+                    currentScreen = AppScreenState.REGISTER
+                },
+                onNavigateToHome = {
+                    loginNotice = null
+                    currentScreen = AppScreenState.HOME
+                }
             )
         }
         AppScreenState.REGISTER -> {
+            BackHandler { currentScreen = AppScreenState.LOGIN }
             RegisterScreen(
                 onNavigateToLogin = { currentScreen = AppScreenState.LOGIN },
-                onNavigateToHome = { currentScreen = AppScreenState.HOME }
+                onRegisterSuccess = {
+                    loginNotice = null
+                    currentScreen = AppScreenState.HOME
+                }
             )
         }
         AppScreenState.HOME -> {
@@ -141,7 +180,8 @@ fun PettoApp() {
                 onAddPetClick = {
                     currentScreen = AppScreenState.ADD_PET
                 },
-                onPetClick = {
+                onPetClick = { petId ->
+                    selectedPetId = petId
                     currentScreen = AppScreenState.PET_DETAIL
                 },
                 onLogoutSuccess = {
@@ -150,6 +190,8 @@ fun PettoApp() {
             )
         }
         AppScreenState.PET_DETAIL -> {
+            BackHandler { currentScreen = AppScreenState.PROFILE }
+            // TODO: PetDetailScreen belum menerima petId. Tambahkan parameter
             PetDetailScreen(
                 onBackClick = {
                     currentScreen = AppScreenState.PROFILE
@@ -166,6 +208,7 @@ fun PettoApp() {
             )
         }
         AppScreenState.ADD_PET -> {
+            BackHandler { currentScreen = AppScreenState.PROFILE }
             PetFormScreen(
                 isEditMode = false,
                 onBackClick = {
@@ -177,9 +220,10 @@ fun PettoApp() {
             )
         }
         AppScreenState.EDIT_PET -> {
+            BackHandler { currentScreen = AppScreenState.PET_DETAIL }
             PetFormScreen(
                 isEditMode = true,
-                petId = "1",
+                petId = selectedPetId,
                 onBackClick = {
                     currentScreen = AppScreenState.PET_DETAIL
                 },
@@ -189,6 +233,7 @@ fun PettoApp() {
             )
         }
         AppScreenState.EDIT_PROFILE -> {
+            BackHandler { currentScreen = AppScreenState.PROFILE }
             EditProfileScreen(
                 onBackClick = {
                     currentScreen = AppScreenState.PROFILE
@@ -199,6 +244,7 @@ fun PettoApp() {
             )
         }
         AppScreenState.ADD_SCHEDULE -> {
+            BackHandler { currentScreen = AppScreenState.PET_DETAIL }
             ScheduleFormScreen(
                 isEditMode = false,
                 onBackClick = {
@@ -210,6 +256,8 @@ fun PettoApp() {
             )
         }
         AppScreenState.EDIT_SCHEDULE -> {
+            BackHandler { currentScreen = AppScreenState.PET_DETAIL }
+            // TODO: scheduleId masih hardcode "1"; perlu selectedScheduleId dari PetDetail.
             ScheduleFormScreen(
                 isEditMode = true,
                 scheduleId = "1",
@@ -223,3 +271,4 @@ fun PettoApp() {
         }
     }
 }
+

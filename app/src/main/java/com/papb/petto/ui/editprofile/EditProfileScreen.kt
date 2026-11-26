@@ -59,11 +59,14 @@ fun EditProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
+    LaunchedEffect(Unit) {
+        viewModel.saveSuccessEvent.collect {
+            viewModel.resetState()
             onSaveSuccess()
         }
     }
+
+    LaunchedEffect(Unit) { viewModel.loadProfile() }
 
     EditProfileContent(
         state = uiState,
@@ -103,7 +106,6 @@ fun EditProfileContent(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 20.dp)
         ) {
-            // --- TOP HEADER (Back Button & Title) ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -135,7 +137,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- USER AVATAR WITH CAMERA BADGE ---
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -150,7 +151,6 @@ fun EditProfileContent(
                             .clip(CircleShape)
                     )
 
-                    // Camera Badge Button
                     Surface(
                         onClick = { },
                         shape = CircleShape,
@@ -172,7 +172,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // --- FORM: FULL NAME ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Full Name",
@@ -200,7 +199,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- FORM: EMAIL ADDRESS ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Email Address",
@@ -212,6 +210,7 @@ fun EditProfileContent(
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
+                    readOnly = true,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     shape = RoundedCornerShape(12.dp),
@@ -229,7 +228,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- FORM: PHONE NUMBER ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Phone Number",
@@ -284,7 +282,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- FORM: HOME ADDRESS ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Home Address",
@@ -294,7 +291,6 @@ fun EditProfileContent(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Address Card Box
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant),
@@ -332,7 +328,6 @@ fun EditProfileContent(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Map Preview Container
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant),
@@ -348,7 +343,6 @@ fun EditProfileContent(
                             modifier = Modifier.fillMaxSize()
                         )
 
-                        // Center Paw Pin
                         Image(
                             painter = painterResource(id = R.drawable.pin_map),
                             contentDescription = "Pin",
@@ -357,7 +351,6 @@ fun EditProfileContent(
                                 .align(Alignment.Center)
                         )
 
-                        // Overlay "Use current location" Button
                         Surface(
                             onClick = onUseCurrentLocationClick,
                             shape = RoundedCornerShape(20.dp),
@@ -391,7 +384,6 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- FORM: ALERT RADIUS SLIDER ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Alert Radius",
@@ -440,7 +432,6 @@ fun EditProfileContent(
                 )
             }
 
-            // Error Message (if any)
             state.errorMessage?.let { errorMsg ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -452,9 +443,9 @@ fun EditProfileContent(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // --- SAVE CHANGES PRIMARY BUTTON ---
             Button(
                 onClick = onSaveChangesClick,
+                enabled = !state.isLoading,
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                 modifier = Modifier
@@ -474,7 +465,6 @@ fun EditProfileContent(
     }
 }
 
-// --- Compose Preview ---
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun EditProfileScreenPreview() {

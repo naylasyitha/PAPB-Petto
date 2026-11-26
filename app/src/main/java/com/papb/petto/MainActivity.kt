@@ -73,6 +73,7 @@ fun PettoApp() {
     var selectedScheduleId by rememberSaveable { mutableStateOf<String?>(null) }
     var loginNotice by rememberSaveable { mutableStateOf<String?>(null) }
     var sessionChecked by rememberSaveable { mutableStateOf(false) }
+    var notificationsOrigin by rememberSaveable { mutableStateOf(AppScreenState.HOME) }
 
     val notificationsViewModel: NotificationsViewModel = viewModel()
     val notificationsState by notificationsViewModel.uiState.collectAsState()
@@ -80,6 +81,10 @@ fun PettoApp() {
     LaunchedEffect(currentScreen) {
         if (currentScreen == AppScreenState.HOME || currentScreen == AppScreenState.COMMUNITY) {
             notificationsViewModel.refresh()
+        }
+
+        if (currentScreen == AppScreenState.LOGIN) {
+            notificationsViewModel.clear()
         }
     }
 
@@ -92,6 +97,11 @@ fun PettoApp() {
             BottomTab.PROFILE -> AppScreenState.PROFILE
             else -> currentScreen
         }
+    }
+
+    fun openNotifications() {
+        notificationsOrigin = currentScreen
+        currentScreen = AppScreenState.NOTIFICATIONS
     }
 
     LaunchedEffect(Unit) {
@@ -140,7 +150,7 @@ fun PettoApp() {
             HomeScreen(
                 unreadNotificationCount = notificationsState.unreadCount,
                 onTabSelected = ::navigateToTab,
-                onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
+                onNotificationClick = ::openNotifications,
                 onQuickAccessClick = { action ->
                     if (action == "missing_pet") currentScreen = AppScreenState.REPORT_MISSING
                 },
@@ -160,7 +170,7 @@ fun PettoApp() {
             CommunityScreen(
                 unreadNotificationCount = notificationsState.unreadCount,
                 onTabSelected = ::navigateToTab,
-                onNotificationClick = { currentScreen = AppScreenState.NOTIFICATIONS },
+                onNotificationClick = ::openNotifications,
                 onProfileClick = { currentScreen = AppScreenState.PROFILE },
                 onReportMissingClick = { currentScreen = AppScreenState.REPORT_MISSING }
             )
@@ -179,10 +189,10 @@ fun PettoApp() {
             )
         }
         AppScreenState.NOTIFICATIONS -> {
-            BackHandler { currentScreen = AppScreenState.HOME }
+            BackHandler { currentScreen = notificationsOrigin }
             NotificationsScreen(
                 viewModel = notificationsViewModel,
-                onBackClick = { currentScreen = AppScreenState.HOME }
+                onBackClick = { currentScreen = notificationsOrigin }
             )
         }
         AppScreenState.PROFILE -> {

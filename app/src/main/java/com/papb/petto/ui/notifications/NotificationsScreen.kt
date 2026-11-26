@@ -140,7 +140,6 @@ fun NotificationsContent(
         }
 
         state.errorMessage?.takeIf { state.items.isNotEmpty() }?.let {
-            // Pesan saat laporan sudah tidak tersedia.
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),

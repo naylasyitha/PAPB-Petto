@@ -27,6 +27,10 @@ class NotificationsViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(NotificationsState())
     val uiState: StateFlow<NotificationsState> = _uiState.asStateFlow()
 
+    fun clear() {
+        _uiState.value = NotificationsState()
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }

@@ -4,6 +4,7 @@ import com.papb.petto.data.model.PetDto
 import com.papb.petto.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.storage.storage
 
 interface PetRepository {
     suspend fun getPetsForCurrentUser(): Result<List<PetDto>>
@@ -11,6 +12,8 @@ interface PetRepository {
     suspend fun addPet(pet: PetDto): Result<Unit>
     suspend fun updatePet(pet: PetDto): Result<Unit>
     suspend fun deletePet(petId: String): Result<Unit>
+    /** Upload foto hewan, mengembalikan URL publiknya. */
+    suspend fun uploadPhoto(petId: String, photo: ByteArray): Result<String>
 }
 
 class PetRepositoryImpl : PetRepository {
@@ -40,6 +43,20 @@ class PetRepositoryImpl : PetRepository {
                 }
             }.decodeSingleOrNull<PetDto>()
             Result.success(pet)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun uploadPhoto(petId: String, photo: ByteArray): Result<String> {
+        return try {
+            val userId = client.auth.currentSessionOrNull()?.user?.id
+                ?: return Result.failure(IllegalStateException("Please log in first"))
+            val bucket = client.storage.from("pet-photos")
+            val path = "$userId/$petId.jpg"
+            bucket.upload(path, photo) { upsert = true }
+            // Nama file per hewan selalu sama, jadi ditambah ?v= supaya tidak diambil dari cache.
+            Result.success("${bucket.publicUrl(path)}?v=${System.currentTimeMillis()}")
         } catch (e: Exception) {
             Result.failure(e)
         }

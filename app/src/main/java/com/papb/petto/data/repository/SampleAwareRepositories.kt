@@ -26,6 +26,9 @@ class SampleAwarePetRepository(
 
     override suspend fun addPet(pet: PetDto): Result<Unit> = remote.addPet(pet)
 
+    override suspend fun uploadPhoto(petId: String, photo: ByteArray): Result<String> =
+        remote.uploadPhoto(petId, photo)
+
     override suspend fun updatePet(pet: PetDto): Result<Unit> {
         return if (SampleData.isSamplePet(pet.id)) {
             SampleData.updatePet(pet)

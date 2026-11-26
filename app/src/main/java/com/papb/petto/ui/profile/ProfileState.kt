@@ -7,7 +7,8 @@ data class PetProfileItem(
     val name: String,
     val speciesBreed: String,
     val ageText: String,
-    val imageRes: Int
+    val imageRes: Int,
+    val imageUrl: String? = null
 )
 
 data class SettingMenuItem(
@@ -19,6 +20,7 @@ data class SettingMenuItem(
 data class ProfileState(
     val userName: String = "",
     val userEmail: String = "",
+    val avatarUrl: String? = null,
     val currentTab: BottomTab = BottomTab.PROFILE,
     val pets: List<PetProfileItem> = listOf(),
     val petsError: String? = null,

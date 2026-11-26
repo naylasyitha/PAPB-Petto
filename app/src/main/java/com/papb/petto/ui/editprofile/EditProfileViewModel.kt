@@ -1,10 +1,13 @@
 package com.papb.petto.ui.editprofile
 
+import android.app.Application
+import android.net.Uri
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.papb.petto.data.repository.ProfileRepository
 import com.papb.petto.data.repository.ProfileRepositoryImpl
+import com.papb.petto.util.ImageCompressor
 import com.papb.petto.util.shortMessage
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,9 +18,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-class EditProfileViewModel(
+class EditProfileViewModel @JvmOverloads constructor(
+    application: Application,
     private val profileRepository: ProfileRepository = ProfileRepositoryImpl()
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private companion object {
         const val NO_ADDRESS = "No address set"
@@ -44,7 +48,7 @@ class EditProfileViewModel(
         pendingHomeLng = null
         viewModelScope.launch {
             val email = profileRepository.currentUserEmail().orEmpty()
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(avatarUri = null, avatarUrl = null, isLoading = true, errorMessage = null) }
             profileRepository.getMyProfile()
                 .onSuccess { profile ->
                     _uiState.update {
@@ -55,6 +59,7 @@ class EditProfileViewModel(
                             homeAddressTitle = profile?.homeTitle ?: NO_ADDRESS,
                             homeAddressSubtitle = profile?.homeSubtitle.orEmpty(),
                             alertRadiusKm = (profile?.alertRadiusKm ?: 2).toFloat().coerceIn(1f, 5f),
+                            avatarUrl = profile?.avatarUrl,
                             isLoading = false
                         )
                     }
@@ -70,6 +75,10 @@ class EditProfileViewModel(
                     }
                 }
         }
+    }
+
+    fun onPhotoPicked(uri: Uri) {
+        _uiState.update { it.copy(avatarUri = uri, errorMessage = null) }
     }
 
     fun onFullNameChange(name: String) {
@@ -126,6 +135,15 @@ class EditProfileViewModel(
                     lat = homeLat,
                     lng = homeLng
                 )
+            }
+
+            val photoUri = state.avatarUri
+            if (result.isSuccess && photoUri != null) {
+                result = try {
+                    profileRepository.uploadAvatar(ImageCompressor.compress(getApplication(), photoUri))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
             }
 
             result

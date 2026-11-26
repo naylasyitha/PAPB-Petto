@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +59,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.papb.petto.R
 import com.papb.petto.ui.addpet.GenderOption
 import com.papb.petto.ui.theme.PettoTheme
@@ -95,7 +97,8 @@ fun PetFormScreen(
         onWeightChange = viewModel::onWeightChange,
         onSpayedNeuteredChange = viewModel::onSpayedNeuteredChange,
         onNotesChange = viewModel::onNotesChange,
-        onSubmitClick = viewModel::onSubmitClicked
+        onSubmitClick = viewModel::onSubmitClicked,
+        onPhotoPicked = viewModel::onPhotoPicked
     )
 }
 
@@ -112,13 +115,14 @@ fun PetFormContent(
     onWeightChange: (String) -> Unit,
     onSpayedNeuteredChange: (Boolean) -> Unit,
     onNotesChange: (String) -> Unit,
-    onSubmitClick: () -> Unit
+    onSubmitClick: () -> Unit,
+    onPhotoPicked: (Uri) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> }
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? -> uri?.let(onPhotoPicked) }
 
     Box(
         modifier = Modifier
@@ -168,17 +172,34 @@ fun PetFormContent(
                 contentAlignment = Alignment.Center
             ) {
                 Box(modifier = Modifier.size(120.dp)) {
-                    Image(
-                        painter = painterResource(id = state.imageRes),
-                        contentDescription = "Pet Image",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(20.dp))
-                    )
+                    val photoModifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(20.dp))
+                    val photoModel: Any? = state.photoUri ?: state.imageUrl
+                    if (photoModel != null) {
+                        AsyncImage(
+                            model = photoModel,
+                            contentDescription = "Pet Image",
+                            placeholder = painterResource(id = state.imageRes),
+                            error = painterResource(id = state.imageRes),
+                            contentScale = ContentScale.Crop,
+                            modifier = photoModifier
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = state.imageRes),
+                            contentDescription = "Pet Image",
+                            contentScale = ContentScale.Crop,
+                            modifier = photoModifier
+                        )
+                    }
 
                     Surface(
-                        onClick = { photoPickerLauncher.launch("image/*") },
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                         shape = CircleShape,
                         color = colors.primary,
                         modifier = Modifier

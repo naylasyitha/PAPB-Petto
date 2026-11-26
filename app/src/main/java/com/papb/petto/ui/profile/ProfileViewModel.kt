@@ -50,7 +50,9 @@ class ProfileViewModel(
                 .onSuccess { profile ->
                     val name = profile?.fullName?.takeIf { it.isNotBlank() }
                         ?: email.substringBefore("@")
-                    _uiState.update { it.copy(userName = name, userEmail = email) }
+                    _uiState.update {
+                        it.copy(userName = name, userEmail = email, avatarUrl = profile?.avatarUrl)
+                    }
                 }
                 .onFailure { e ->
                     Log.e("ProfileViewModel", "Gagal memuat profil", e)
@@ -105,7 +107,8 @@ class ProfileViewModel(
             name = name,
             speciesBreed = if (safeBreed.isBlank()) speciesLabel else "$speciesLabel • $safeBreed",
             ageText = formatPetAge(safeAgeMonths.toIntOrNull() ?: 0),
-            imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default
+            imageRes = SampleData.imageResFor(id) ?: R.drawable.ic_pet_default,
+            imageUrl = imageUrl
         )
     }
 }

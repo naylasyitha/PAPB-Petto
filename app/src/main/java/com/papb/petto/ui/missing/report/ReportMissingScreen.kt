@@ -1,5 +1,6 @@
 package com.papb.petto.ui.missing.report
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -92,10 +93,25 @@ fun ReportMissingScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) { viewModel.onScreenOpened() }
+
+    val leave = {
+        if (!state.isSubmitting) {
+            viewModel.reset()
+            onBackClick()
+        }
+    }
+    val finish = {
+        viewModel.reset()
+        onSuccessFinished()
+    }
+
+    BackHandler { leave() }
+
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
             delay(2000)
-            onSuccessFinished()
+            finish()
         }
     }
 
@@ -103,7 +119,7 @@ fun ReportMissingScreen(
         state = state,
         fallbackLat = viewModel.fallbackLat,
         fallbackLng = viewModel.fallbackLng,
-        onBackClick = onBackClick,
+        onBackClick = leave,
         onPhotosPicked = viewModel::onPhotosPicked,
         onRemovePhoto = viewModel::onRemovePhoto,
         onNameChange = viewModel::onNameChange,
@@ -116,7 +132,7 @@ fun ReportMissingScreen(
         onPhoneChange = viewModel::onPhoneChange,
         onRewardChange = viewModel::onRewardChange,
         onSubmitClick = viewModel::onSubmitClicked,
-        onSuccessDismiss = onSuccessFinished
+        onSuccessDismiss = finish
     )
 }
 
